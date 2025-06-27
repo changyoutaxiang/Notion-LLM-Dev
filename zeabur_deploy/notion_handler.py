@@ -472,29 +472,41 @@ class NotionHandler:
             print("🚫 检测到'无'标签，跳过知识库读取")
             return ""
         
-        base_path = "knowledge_base"
+        # 获取当前脚本所在目录，然后构建knowledge_base路径
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        base_path = os.path.join(current_dir, "knowledge_base")
+        
         context_parts = []
         
+        print(f"🔍 查找知识库目录: {base_path}")
         if not os.path.isdir(base_path):
-            print(f"知识库目录未找到: {base_path}")
+            print(f"❌ 知识库目录未找到: {base_path}")
             return ""
+        else:
+            print(f"✅ 知识库目录存在: {base_path}")
 
         for tag in tags:
             # 兼容Windows和macOS/Linux的文件名
             safe_tag = tag.replace("/", "_").replace("\\", "_")
             file_path = os.path.join(base_path, f"{safe_tag}.md")
             
+            print(f"🔍 查找文件: {file_path}")
             if os.path.exists(file_path):
                 try:
                     with open(file_path, "r", encoding="utf-8") as f:
                         content = f.read()
+                        print(f"✅ 成功读取文件: {tag} ({len(content)} 字符)")
                         # 为每个上下文片段添加一个明确的标题，帮助LLM理解来源
                         context_parts.append(f"--- 来自知识库: {tag} ---\n{content}")
                 except Exception as e:
-                    print(f"读取知识文件 {file_path} 时出错: {e}")
+                    print(f"❌ 读取知识文件 {file_path} 时出错: {e}")
+            else:
+                print(f"❌ 文件不存在: {file_path}")
         
         if not context_parts:
+            print("❌ 没有找到任何背景文件")
             return ""
-            
-        # 将所有找到的上下文拼接成一个字符串
-        return "\n\n".join(context_parts) 
+        
+        final_context = "\n\n".join(context_parts)
+        print(f"✅ 最终背景文件内容长度: {len(final_context)} 字符")
+        return final_context 

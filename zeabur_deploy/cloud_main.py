@@ -175,22 +175,25 @@ class CloudScheduler:
             # 获取知识库上下文
             knowledge_context = self.notion_handler.get_context_from_knowledge_base(tags)
             
-            # 获取系统提示词
-            system_prompt = self._get_system_prompt(template_choice)
+            # 获取基础系统提示词
+            base_system_prompt = self._get_system_prompt(template_choice)
             
-            # 组合最终内容
-            final_content = content
+            # 组合系统提示词（将背景信息融入系统提示词）
             if knowledge_context:
-                final_content = f"""
+                system_prompt = f"""{base_system_prompt}
+
+## 背景知识库
+
 {knowledge_context}
 
 ---
 
-请严格根据以上知识库内容，直接回答用户的问题。
-
-用户问题如下:
-{content}
-"""
+请严格根据以上背景知识库内容来回答用户问题。如果问题与背景知识相关，请充分利用背景信息；如果问题超出背景知识范围，请明确说明并基于你的通用知识回答。"""
+            else:
+                system_prompt = base_system_prompt
+            
+            # 用户消息保持原样
+            final_content = content
             
             # 确定模型
             model_mapping = self.config["settings"]["model_mapping"]
