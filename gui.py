@@ -12,7 +12,7 @@ class NotionLLMGUI:
         self.root = tk.Tk()
         self.root.title("🤖 Notion-LLM 异步通信助手")
         self.root.geometry("900x700")
-        self.root.configure(bg="#0f0f23")  # 深蓝紫背景
+        self.root.configure(bg="#ffffff")  # 纯白背景
         
         # 设置现代化样式
         self.setup_styles()
@@ -36,28 +36,28 @@ class NotionLLMGUI:
         """设置现代化UI样式 - 精细版"""
         style = ttk.Style()
         
-        # 设置主题为暗色
+        # 设置主题为浅色
         style.theme_use('clam')
         
         # 配置精细的颜色方案
         colors = {
-            'bg': '#0f0f23',           # 深蓝紫主背景
-            'card_bg': '#1e1e3f',      # 卡片背景
-            'card_border': '#2a2a5a',  # 卡片边框
-            'accent': '#6c5ce7',       # 主题色-紫色
-            'accent_light': '#a29bfe', # 浅紫色
-            'accent_hover': '#5f4fcf', # 主题色悬停
+            'bg': '#ffffff',           # 纯白主背景
+            'card_bg': '#f9fafb',      # 卡片背景
+            'card_border': '#e5e7eb',  # 卡片边框
+            'accent': '#2563eb',       # 主题色-蓝色
+            'accent_light': '#60a5fa', # 浅蓝色
+            'accent_hover': '#1d4ed8', # 主题色悬停
             'success': '#00b894',      # 成功绿色
             'success_light': '#55efc4',# 浅绿色
             'warning': '#fdcb6e',      # 警告黄色
             'warning_light': '#ffdd59',# 浅黄色
             'danger': '#e84393',       # 危险红色
             'danger_light': '#fd79a8', # 浅红色
-            'text': '#f8f9ff',         # 主文字
-            'text_secondary': '#a5a5c9', # 次要文字
-            'text_muted': '#74748c',   # 静音文字
-            'border': '#404067',       # 边框
-            'shadow': '#0a0a1a'        # 阴影
+            'text': '#111827',         # 主文字
+            'text_secondary': '#6b7280', # 次要文字
+            'text_muted': '#a0aec0',   # 静音文字
+            'border': '#e5e7eb',       # 边框
+            'shadow': '#f3f4f6'        # 阴影
         }
         
         # 配置Notebook样式
@@ -207,11 +207,11 @@ class NotionLLMGUI:
         style.configure('Title.TLabel',
                        background=colors['bg'],
                        foreground=colors['text'],
-                       font=('SF Pro Display', 18, 'bold'))
+                       font=('SF Pro Display', 20, 'bold'))
         style.configure('Subtitle.TLabel',
                        background=colors['bg'],
                        foreground=colors['text_secondary'],
-                       font=('SF Pro Display', 12))
+                       font=('SF Pro Display', 14))
         style.configure('CardText.TLabel',
                        background=colors['card_bg'],
                        foreground=colors['text'],
@@ -240,11 +240,11 @@ class NotionLLMGUI:
     def setup_ui(self):
         """设置现代化用户界面"""
         # 主容器
-        main_container = tk.Frame(self.root, bg="#0f0f23")
+        main_container = tk.Frame(self.root, bg="#ffffff")
         main_container.pack(fill="both", expand=True, padx=24, pady=24)
         
         # 顶部标题区域
-        header_frame = tk.Frame(main_container, bg="#0f0f23")
+        header_frame = tk.Frame(main_container, bg="#ffffff")
         header_frame.pack(fill="x", pady=(0, 24))
         
         title_label = ttk.Label(header_frame, text="🤖 Notion-LLM 异步通信助手", style="Title.TLabel")
@@ -280,7 +280,7 @@ class NotionLLMGUI:
     def setup_config_tab(self, parent):
         """设置现代化配置标签页"""
         # 滚动容器
-        canvas = tk.Canvas(parent, bg="#0f0f23", highlightthickness=0)
+        canvas = tk.Canvas(parent, bg="#ffffff", highlightthickness=0)
         scrollbar = ttk.Scrollbar(parent, orient="vertical", command=canvas.yview)
         scrollable_frame = ttk.Frame(canvas, style="Card.TFrame")
         
@@ -362,24 +362,24 @@ class NotionLLMGUI:
         ttk.Label(prompt_frame, text="系统提示词 (控制AI回复风格和行为):", style="CardText.TLabel").pack(anchor="w", pady=(0, 10))
         
         # 创建提示词编辑区域
-        prompt_container = tk.Frame(prompt_frame, bg="#0f0f23")
+        prompt_container = tk.Frame(prompt_frame, bg="#ffffff")
         prompt_container.pack(fill="both", expand=True, pady=(0, 15))
         
         self.prompt_text = scrolledtext.ScrolledText(
             prompt_container, 
             height=6, 
             wrap=tk.WORD,
-            bg="#0f0f23",
-            fg="#f8f9ff",
-            insertbackground="#6c5ce7",
-            selectbackground="#2a2a5a",
-            selectforeground="#ffffff",
+            bg="#ffffff",
+            fg="#111827",
+            insertbackground="#2563eb",
+            selectbackground="#e5e7eb",
+            selectforeground="#111827",
             font=("SF Pro Text", 11),
             relief="flat",
             borderwidth=2,
             highlightthickness=1,
-            highlightcolor="#6c5ce7",
-            highlightbackground="#404067"
+            highlightcolor="#2563eb",
+            highlightbackground="#e5e7eb"
         )
         self.prompt_text.pack(fill="both", expand=True, padx=1, pady=1)
         
@@ -459,25 +459,25 @@ class NotionLLMGUI:
         current_frame.pack(fill="both", expand=True)
         
         # 创建美化的文本区域
-        text_container = tk.Frame(current_frame, bg="#0f0f23")
+        text_container = tk.Frame(current_frame, bg="#ffffff")
         text_container.pack(fill="both", expand=True)
         
         self.current_text = scrolledtext.ScrolledText(
             text_container,
             height=15, 
             state="disabled",
-            bg="#0f0f23",
-            fg="#f8f9ff",
-            insertbackground="#6c5ce7",
-            selectbackground="#2a2a5a",
-            selectforeground="#ffffff",
+            bg="#ffffff",
+            fg="#111827",
+            insertbackground="#2563eb",
+            selectbackground="#e5e7eb",
+            selectforeground="#111827",
             font=("SF Mono", 10),
             relief="flat",
             borderwidth=2,
             wrap=tk.WORD,
             highlightthickness=1,
-            highlightcolor="#6c5ce7",
-            highlightbackground="#404067"
+            highlightcolor="#2563eb",
+            highlightbackground="#e5e7eb"
         )
         self.current_text.pack(fill="both", expand=True, padx=1, pady=1)
     
@@ -492,24 +492,24 @@ class NotionLLMGUI:
         log_card.pack(fill="both", expand=True, pady=(0, 15))
         
         # 创建美化的日志文本区域
-        log_container = tk.Frame(log_card, bg="#0f0f23")
+        log_container = tk.Frame(log_card, bg="#ffffff")
         log_container.pack(fill="both", expand=True)
         
         self.log_text = scrolledtext.ScrolledText(
             log_container,
             height=20,
-            bg="#0f0f23",
-            fg="#f8f9ff",
-            insertbackground="#6c5ce7",
-            selectbackground="#2a2a5a",
-            selectforeground="#ffffff",
+            bg="#ffffff",
+            fg="#111827",
+            insertbackground="#2563eb",
+            selectbackground="#e5e7eb",
+            selectforeground="#111827",
             font=("SF Mono", 10),
             relief="flat",
             borderwidth=2,
             wrap=tk.WORD,
             highlightthickness=1,
-            highlightcolor="#6c5ce7",
-            highlightbackground="#404067"
+            highlightcolor="#2563eb",
+            highlightbackground="#e5e7eb"
         )
         self.log_text.pack(fill="both", expand=True, padx=1, pady=1)
         
@@ -802,7 +802,7 @@ class NotionLLMGUI:
         list_card.pack(fill="both", expand=True, pady=(0, 15))
         
         # 创建美化的Treeview
-        tree_container = tk.Frame(list_card, bg="#0f0f23")
+        tree_container = tk.Frame(list_card, bg="#f9fafb")
         tree_container.pack(fill="both", expand=True)
         
         self.template_tree = ttk.Treeview(tree_container, show="tree", height=12, style="Modern.Treeview")
@@ -865,7 +865,7 @@ class NotionLLMGUI:
         # 模板内容
         ttk.Label(detail_card, text="提示词内容:", style="CardText.TLabel").pack(anchor="w", pady=(10, 5))
         
-        text_container = tk.Frame(detail_card, bg="#0f0f23")
+        text_container = tk.Frame(detail_card, bg="#f9fafb")
         text_container.pack(fill="both", expand=True)
         
         self.detail_text = scrolledtext.ScrolledText(
@@ -873,16 +873,16 @@ class NotionLLMGUI:
             height=8, 
             state="disabled", 
             wrap=tk.WORD,
-            bg="#0f0f23",
-            fg="#f8f9ff",
-            selectbackground="#2a2a5a",
-            selectforeground="#ffffff",
+            bg="#f9fafb",
+            fg="#111827",
+            selectbackground="#e5e7eb",
+            selectforeground="#111827",
             font=("SF Pro Text", 10),
             relief="flat",
             borderwidth=2,
             highlightthickness=1,
-            highlightcolor="#6c5ce7",
-            highlightbackground="#404067"
+            highlightcolor="#2563eb",
+            highlightbackground="#e5e7eb"
         )
         self.detail_text.pack(fill="both", expand=True, padx=1, pady=1)
         
@@ -1081,7 +1081,7 @@ class NotionLLMGUI:
         editor_window = tk.Toplevel(self.root)
         editor_window.title("模板编辑器" if template_name else "新建模板")
         editor_window.geometry("600x500")
-        editor_window.configure(bg="#0f0f23")
+        editor_window.configure(bg="#ffffff")
         editor_window.transient(self.root)
         editor_window.grab_set()
         
@@ -1115,7 +1115,7 @@ class NotionLLMGUI:
         content_frame.pack(fill="both", expand=True, padx=10, pady=(0, 10))
         
         # 创建文本容器
-        text_container = tk.Frame(content_frame, bg="#0f0f23")
+        text_container = tk.Frame(content_frame, bg="#ffffff")
         text_container.pack(fill="both", expand=True)
         
         prompt_text = scrolledtext.ScrolledText(content_frame, height=15, wrap=tk.WORD)

@@ -13,10 +13,14 @@ class MessageScheduler:
         self.gui = gui
         self.is_running = False
         
+        # 获取知识库属性名称
+        knowledge_base_property = config.get("settings", {}).get("knowledge_base_property_name", "标签")
+        
         # 初始化处理器
         self.notion_handler = NotionHandler(
             config["notion"]["api_key"],
-            config["notion"]["database_id"]
+            config["notion"]["database_id"],
+            knowledge_base_property=knowledge_base_property
         )
         
         self.llm_handler = LLMHandler(
@@ -120,17 +124,40 @@ class MessageScheduler:
             title = message["title"] or "无标题"
             content = message["content"]
             template_choice = message.get("template_choice", "")
+            tags = message.get("tags", [])
             
-            process_info = f"正在处理消息:\n模板: {template_choice}\n内容: {content[:100]}..."
+            process_info = f"正在处理消息:\n模板: {template_choice}\n标签: {tags}\n内容: {content[:100]}..."
             print(f"处理消息: {template_choice} - {content[:50]}...")
             
             if self.gui:
                 self.gui.root.after(0, lambda: self.gui.add_log(f"开始处理 [{template_choice}]: {content[:30]}..."))
                 self.gui.root.after(0, lambda: self.gui.update_current_processing(process_info))
             
-            # 根据模板选择获取系统提示词
+            # 1. 根据标签从知识库获取上下文
+            knowledge_context = self.notion_handler.get_context_from_knowledge_base(tags)
+            if knowledge_context:
+                log_msg = f"已加载知识库上下文: {', '.join(tags)}"
+                print(log_msg)
+                if self.gui:
+                    self.gui.root.after(0, lambda: self.gui.add_log(log_msg))
+
+            # 2. 根据模板选择获取系统提示词
             system_prompt = self._get_system_prompt(template_choice)
             
+            # 3. 组合最终的请求内容
+            final_content = content
+            if knowledge_context:
+                final_content = f"""
+{knowledge_context}
+
+---
+
+请严格根据以上知识库内容，直接回答用户的问题，不要输出任何额外的思考或推理过程。
+
+用户问题如下:
+{content}
+"""
+
             # 检查是否启用自动标题生成
             auto_title = self.config.get("settings", {}).get("auto_generate_title", True)
             title_max_length = self.config.get("settings", {}).get("title_max_length", 20)
@@ -139,13 +166,21 @@ class MessageScheduler:
             if auto_title:
                 # 使用新的处理方法（生成回复+标题）
                 success, llm_reply, generated_title = self.llm_handler.process_with_template_and_title(
-                    content, system_prompt, title_max_length, title_min_length
+                    final_content, system_prompt, title_max_length, title_min_length
                 )
             else:
                 # 传统处理方法（只生成回复）
-                success, llm_reply = self.llm_handler.send_message(content, system_prompt)
+                success, llm_reply = self.llm_handler.send_message(final_content, system_prompt)
                 generated_title = None
             
+            # --- 增加详细日志 ---
+            print("---------- LLM Raw Reply ----------")
+            print(llm_reply)
+            print("-----------------------------------")
+            if self.gui:
+                self.gui.root.after(0, lambda: self.gui.add_log(f"LLM 原始回复: {llm_reply[:100]}..."))
+            # --- 日志结束 ---
+
             if success:
                 # 成功：更新LLM回复和标题
                 update_success = self.notion_handler.update_message_reply(

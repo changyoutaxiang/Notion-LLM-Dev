@@ -1,13 +1,15 @@
 import requests
 import json
 from datetime import datetime, timezone
+import os
 
 class NotionHandler:
     """处理与Notion API的所有交互"""
     
-    def __init__(self, api_key, database_id):
+    def __init__(self, api_key, database_id, knowledge_base_property="标签"):
         self.api_key = api_key
         self.database_id = database_id
+        self.knowledge_base_property = knowledge_base_property
         self.headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
@@ -84,13 +86,28 @@ class NotionHandler:
         try:
             url = f"https://api.notion.com/v1/pages/{page_id}"
             
+            # --- 升级内容清洗逻辑 ---
+            # 1. 移除代码块标记
+            cleaned_reply = llm_reply.replace("```", "")
+            # 2. 移除Markdown标题标记 (#) 和列表标记 (*, -)
+            lines = cleaned_reply.split('\n')
+            lines = [line.lstrip('#*-. ') for line in lines]
+            cleaned_reply = '\n'.join(lines)
+            # 3. 去除首尾的空行和空格
+            cleaned_reply = cleaned_reply.strip()
+            
+            # 4. 如果内容为空，则设置一个默认提示
+            if not cleaned_reply:
+                cleaned_reply = "[AI未返回有效内容]"
+            # --- 清洗结束 ---
+
             # 准备更新数据
             properties = {
                 "LLM 回复": {
                     "rich_text": [
                         {
                             "text": {
-                                "content": llm_reply
+                                "content": cleaned_reply
                             }
                         }
                     ]
@@ -143,6 +160,12 @@ class NotionHandler:
             if template_prop.get("select") and template_prop["select"]:
                 template_choice = template_prop["select"]["name"]
             
+            # 提取标签
+            tags_prop = properties.get(self.knowledge_base_property, {})
+            tags = []
+            if tags_prop.get("multi_select"):
+                tags = [tag["name"] for tag in tags_prop["multi_select"]]
+
             if not content:  # 如果没有内容，跳过这条记录
                 return None
             
@@ -151,6 +174,7 @@ class NotionHandler:
                 "title": title,
                 "content": content,
                 "template_choice": template_choice,
+                "tags": tags,
                 "created_time": page.get("created_time", "")
             }
             
@@ -234,4 +258,36 @@ class NotionHandler:
             response.raise_for_status()
             return True, "Notion连接成功！"
         except Exception as e:
-            return False, f"Notion连接失败: {e}" 
+            return False, f"Notion连接失败: {e}"
+
+    def get_context_from_knowledge_base(self, tags: list[str]) -> str:
+        """
+        根据标签从知识库中获取上下文。
+        简单实现：标签名直接对应 knowledge_base 文件夹下的 .md 文件名。
+        """
+        base_path = "knowledge_base"
+        context_parts = []
+        
+        if not os.path.isdir(base_path):
+            print(f"知识库目录未找到: {base_path}")
+            return ""
+
+        for tag in tags:
+            # 兼容Windows和macOS/Linux的文件名
+            safe_tag = tag.replace("/", "_").replace("\\", "_")
+            file_path = os.path.join(base_path, f"{safe_tag}.md")
+            
+            if os.path.exists(file_path):
+                try:
+                    with open(file_path, "r", encoding="utf-8") as f:
+                        content = f.read()
+                        # 为每个上下文片段添加一个明确的标题，帮助LLM理解来源
+                        context_parts.append(f"--- 来自知识库: {tag} ---\n{content}")
+                except Exception as e:
+                    print(f"读取知识文件 {file_path} 时出错: {e}")
+        
+        if not context_parts:
+            return ""
+            
+        # 将所有找到的上下文拼接成一个字符串
+        return "\n\n".join(context_parts) 
