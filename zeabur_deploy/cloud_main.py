@@ -49,6 +49,15 @@ class CloudScheduler:
         
         logger.info("云端调度器初始化完成")
         logger.info("🎯 [版本标识] 云端版本 v2.1 - 增强背景文件加载")
+        
+        # 紧急诊断：在启动时检查环境
+        try:
+            from emergency_debug import emergency_debug
+            logger.info("🚨 [启动诊断] 开始环境检查...")
+            emergency_debug()
+            logger.info("🚨 [启动诊断] 环境检查完成")
+        except Exception as e:
+            logger.error(f"🚨 [启动诊断] 诊断失败: {e}")
     
     def load_config_from_env(self):
         """从环境变量加载配置"""
