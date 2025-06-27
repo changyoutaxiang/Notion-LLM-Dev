@@ -15,12 +15,15 @@ class MessageScheduler:
         
         # 获取知识库属性名称
         knowledge_base_property = config.get("settings", {}).get("knowledge_base_property_name", "标签")
+        # 获取模型选择属性名称
+        model_selection_property = config.get("settings", {}).get("model_selection_property_name", "模型")
         
         # 初始化处理器
         self.notion_handler = NotionHandler(
             config["notion"]["api_key"],
             config["notion"]["database_id"],
-            knowledge_base_property=knowledge_base_property
+            knowledge_base_property=knowledge_base_property,
+            model_selection_property=model_selection_property
         )
         
         self.llm_handler = LLMHandler(
@@ -125,8 +128,9 @@ class MessageScheduler:
             content = message["content"]
             template_choice = message.get("template_choice", "")
             tags = message.get("tags", [])
+            model_choice = message.get("model_choice", "")
             
-            process_info = f"正在处理消息:\n模板: {template_choice}\n标签: {tags}\n内容: {content[:100]}..."
+            process_info = f"正在处理消息:\n模板: {template_choice}\n标签: {tags}\n模型: {model_choice}\n内容: {content[:100]}..."
             print(f"处理消息: {template_choice} - {content[:50]}...")
             
             if self.gui:
@@ -158,6 +162,16 @@ class MessageScheduler:
 {content}
 """
 
+            # 4. 确定要使用的模型ID
+            model_mapping = self.config.get("settings", {}).get("model_mapping", {})
+            override_model_id = model_mapping.get(model_choice) # 如果没找到，会是None
+
+            if model_choice and override_model_id:
+                log_msg = f"检测到模型选择: {model_choice} -> 使用模型: {override_model_id}"
+                print(log_msg)
+                if self.gui:
+                    self.gui.root.after(0, lambda: self.gui.add_log(log_msg))
+
             # 检查是否启用自动标题生成
             auto_title = self.config.get("settings", {}).get("auto_generate_title", True)
             title_max_length = self.config.get("settings", {}).get("title_max_length", 20)
@@ -166,11 +180,19 @@ class MessageScheduler:
             if auto_title:
                 # 使用新的处理方法（生成回复+标题）
                 success, llm_reply, generated_title = self.llm_handler.process_with_template_and_title(
-                    final_content, system_prompt, title_max_length, title_min_length
+                    final_content, 
+                    system_prompt, 
+                    title_max_length, 
+                    title_min_length,
+                    override_model=override_model_id
                 )
             else:
                 # 传统处理方法（只生成回复）
-                success, llm_reply = self.llm_handler.send_message(final_content, system_prompt)
+                success, llm_reply = self.llm_handler.send_message(
+                    final_content, 
+                    system_prompt,
+                    override_model=override_model_id
+                )
                 generated_title = None
             
             # --- 增加详细日志 ---

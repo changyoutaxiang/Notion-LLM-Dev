@@ -13,9 +13,12 @@ class LLMHandler:
             "Content-Type": "application/json"
         }
     
-    def send_message(self, message_content, system_prompt=None):
+    def send_message(self, message_content, system_prompt=None, override_model=None):
         """发送消息给LLM并获取回复"""
         try:
+            # 确定本次调用使用的模型
+            current_model = override_model or self.model
+
             # 构建消息
             messages = []
             
@@ -34,7 +37,7 @@ class LLMHandler:
             
             # 准备请求数据
             payload = {
-                "model": self.model,
+                "model": current_model,
                 "messages": messages,
                 "temperature": 0.7,
                 "max_tokens": 2000
@@ -97,11 +100,11 @@ class LLMHandler:
         except Exception as e:
             return False, f"生成标题时出错: {e}"
     
-    def process_with_template_and_title(self, content, system_prompt, max_title_length=20, min_title_length=10):
+    def process_with_template_and_title(self, content, system_prompt, max_title_length=20, min_title_length=10, override_model=None):
         """处理消息并生成标题（并行处理）"""
         try:
             # 生成主要回复
-            main_success, main_reply = self.send_message(content, system_prompt)
+            main_success, main_reply = self.send_message(content, system_prompt, override_model=override_model)
             
             if not main_success:
                 return False, main_reply, None

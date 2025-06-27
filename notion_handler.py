@@ -6,10 +6,11 @@ import os
 class NotionHandler:
     """处理与Notion API的所有交互"""
     
-    def __init__(self, api_key, database_id, knowledge_base_property="标签"):
+    def __init__(self, api_key, database_id, knowledge_base_property="标签", model_selection_property="模型"):
         self.api_key = api_key
         self.database_id = database_id
         self.knowledge_base_property = knowledge_base_property
+        self.model_selection_property = model_selection_property
         self.headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
@@ -166,6 +167,12 @@ class NotionHandler:
             if tags_prop.get("multi_select"):
                 tags = [tag["name"] for tag in tags_prop["multi_select"]]
 
+            # 提取模型选择
+            model_prop = properties.get(self.model_selection_property, {})
+            model_choice = ""
+            if model_prop.get("select") and model_prop["select"]:
+                model_choice = model_prop["select"]["name"]
+
             if not content:  # 如果没有内容，跳过这条记录
                 return None
             
@@ -175,6 +182,7 @@ class NotionHandler:
                 "content": content,
                 "template_choice": template_choice,
                 "tags": tags,
+                "model_choice": model_choice,
                 "created_time": page.get("created_time", "")
             }
             
