@@ -124,11 +124,24 @@ class MessageScheduler:
             
             # 1. 根据标签从知识库获取上下文
             knowledge_context = self.notion_handler.get_context_from_knowledge_base(tags)
-            if knowledge_context:
-                log_msg = f"已加载知识库上下文: {', '.join(tags)}"
+            if "无" in tags:
+                log_msg = f"📝 已选择'无'背景，不使用知识库上下文"
                 print(log_msg)
                 if self.gui:
                     self.gui.root.after(0, lambda: self.gui.add_log(log_msg))
+            elif knowledge_context:
+                valid_tags = [tag for tag in tags if tag != "无"]  # 排除"无"标签
+                log_msg = f"📚 已加载知识库上下文: {', '.join(valid_tags)}"
+                print(log_msg)
+                if self.gui:
+                    self.gui.root.after(0, lambda: self.gui.add_log(log_msg))
+            else:
+                valid_tags = [tag for tag in tags if tag != "无"]  # 排除"无"标签
+                if valid_tags:
+                    log_msg = f"⚠️ 知识库文件未找到: {', '.join(valid_tags)}"
+                    print(log_msg)
+                    if self.gui:
+                        self.gui.root.after(0, lambda: self.gui.add_log(log_msg))
 
             # 2. 根据模板选择获取系统提示词
             system_prompt = self._get_system_prompt(template_choice)
