@@ -1,0 +1,26 @@
+# Zeabur环境变量配置清单
+# 在Zeabur控制台的Environment页面，逐个添加以下环境变量
+
+# ===== 必需变量 =====
+NOTION_API_KEY=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
+NOTION_DATABASE_ID=21e3bbbae6d280b9af5ce49168ccd347
+OPENROUTER_API_KEY=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
+
+# ===== 可选变量（使用默认值或自定义） =====
+OPENROUTER_MODEL=anthropic/claude-sonnet-4
+CHECK_INTERVAL=60
+AUTO_START=true
+AUTO_TITLE=true
+TITLE_MAX_LENGTH=20
+TITLE_MIN_LENGTH=10
+
+# ===== Notion属性名称（与你的配置保持一致） =====
+NOTION_INPUT_PROP=输入
+NOTION_OUTPUT_PROP=回复
+NOTION_TEMPLATE_PROP=模板选择
+NOTION_KNOWLEDGE_PROP=背景
+NOTION_MODEL_PROP=模型
+NOTION_TITLE_PROP=标题
+
+# ===== 模型映射（JSON格式，一行输入） =====
+MODEL_MAPPING={"Gemini 2.5 pro": "google/gemini-2.5-pro", "Gemini 2.5 flash": "google/gemini-2.5-flash", "Claude 4 sonnet": "anthropic/claude-sonnet-4", "Chatgpt 4.1": "openai/gpt-4.1", "Chatgpt O3": "openai/o3", "Deepseek R1": "deepseek/deepseek-r1-0528", "Deepseek V3": "deepseek/deepseek-chat-v3-0324"} 

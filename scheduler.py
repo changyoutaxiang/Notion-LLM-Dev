@@ -194,11 +194,21 @@ class MessageScheduler:
                 generated_title = None
             
             # --- 增加详细日志 ---
-            print("---------- LLM Raw Reply ----------")
+            print("---------- LLM Context Debug ----------")
+            print("=== System Prompt ===")
+            print(system_prompt)
+            print("\n=== Final Content Sent to LLM ===")
+            print(final_content)
+            print("\n=== Knowledge Context Length ===")
+            print(f"Background file content length: {len(knowledge_context) if knowledge_context else 0} characters")
+            print("\n=== LLM Raw Reply ===")
             print(llm_reply)
-            print("-----------------------------------")
+            print("---------------------------------------")
             if self.gui:
                 self.gui.root.after(0, lambda: self.gui.add_log(f"LLM 原始回复: {llm_reply[:100]}..."))
+                # 添加调试信息到GUI
+                if knowledge_context:
+                    self.gui.root.after(0, lambda: self.gui.add_log(f"🔍 背景文件长度: {len(knowledge_context)} 字符"))
             # --- 日志结束 ---
 
             if success:
