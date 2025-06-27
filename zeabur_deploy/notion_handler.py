@@ -472,41 +472,105 @@ class NotionHandler:
             print("🚫 检测到'无'标签，跳过知识库读取")
             return ""
         
-        # 获取当前脚本所在目录，然后构建knowledge_base路径
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        base_path = os.path.join(current_dir, "knowledge_base")
+        # === 云端版本增强：环境诊断和多路径策略 ===
+        print("🌐 [云端版本] 开始背景文件加载 - v2.1")
+        
+        # 环境诊断
+        import sys
+        print(f"🔍 [环境诊断] Python版本: {sys.version}")
+        print(f"🔍 [环境诊断] 当前工作目录: {os.getcwd()}")
+        print(f"🔍 [环境诊断] 脚本文件路径: {__file__}")
+        print(f"🔍 [环境诊断] 脚本所在目录: {os.path.dirname(os.path.abspath(__file__))}")
+        
+        # 多路径策略：尝试多个可能的knowledge_base位置
+        possible_paths = [
+            # 策略1：脚本同目录下的knowledge_base
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "knowledge_base"),
+            # 策略2：当前工作目录下的knowledge_base
+            os.path.join(os.getcwd(), "knowledge_base"),
+            # 策略3：上级目录的knowledge_base（防止在子目录中运行）
+            os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "knowledge_base"),
+            # 策略4：绝对路径（如果在容器中）
+            "/app/knowledge_base",
+            # 策略5：相对路径（备用）
+            "knowledge_base"
+        ]
+        
+        base_path = None
+        for i, path in enumerate(possible_paths, 1):
+            print(f"🔍 [路径策略{i}] 尝试路径: {path}")
+            if os.path.isdir(path):
+                print(f"✅ [路径策略{i}] 路径存在，使用此路径")
+                base_path = path
+                break
+            else:
+                print(f"❌ [路径策略{i}] 路径不存在")
+        
+        if not base_path:
+            print("❌ [错误] 所有路径策略都失败，无法找到knowledge_base目录")
+            # 列出当前目录和脚本目录的内容进行调试
+            current_dir_files = os.listdir(os.getcwd())
+            script_dir_files = os.listdir(os.path.dirname(os.path.abspath(__file__)))
+            print(f"🔍 [调试] 当前工作目录内容: {current_dir_files}")
+            print(f"🔍 [调试] 脚本所在目录内容: {script_dir_files}")
+            return ""
+        
+        # 列出knowledge_base目录内容
+        try:
+            kb_files = os.listdir(base_path)
+            print(f"🔍 [目录内容] knowledge_base目录包含: {kb_files}")
+        except Exception as e:
+            print(f"❌ [错误] 无法列出knowledge_base目录内容: {e}")
         
         context_parts = []
         
-        print(f"🔍 查找知识库目录: {base_path}")
-        if not os.path.isdir(base_path):
-            print(f"❌ 知识库目录未找到: {base_path}")
-            return ""
-        else:
-            print(f"✅ 知识库目录存在: {base_path}")
-
         for tag in tags:
             # 兼容Windows和macOS/Linux的文件名
             safe_tag = tag.replace("/", "_").replace("\\", "_")
             file_path = os.path.join(base_path, f"{safe_tag}.md")
             
-            print(f"🔍 查找文件: {file_path}")
+            print(f"🔍 [文件查找] 标签'{tag}' -> 查找文件: {file_path}")
             if os.path.exists(file_path):
                 try:
-                    with open(file_path, "r", encoding="utf-8") as f:
-                        content = f.read()
-                        print(f"✅ 成功读取文件: {tag} ({len(content)} 字符)")
+                    # 尝试多种编码方式读取文件
+                    encodings = ['utf-8', 'utf-8-sig', 'gbk', 'gb2312']
+                    content = None
+                    used_encoding = None
+                    
+                    for encoding in encodings:
+                        try:
+                            with open(file_path, "r", encoding=encoding) as f:
+                                content = f.read()
+                                used_encoding = encoding
+                                break
+                        except UnicodeDecodeError:
+                            continue
+                    
+                    if content is not None:
+                        print(f"✅ [文件读取] 成功读取文件: {tag} ({len(content)} 字符, 编码: {used_encoding})")
                         # 为每个上下文片段添加一个明确的标题，帮助LLM理解来源
                         context_parts.append(f"--- 来自知识库: {tag} ---\n{content}")
+                    else:
+                        print(f"❌ [文件读取] 无法用任何编码读取文件: {file_path}")
+                        
                 except Exception as e:
-                    print(f"❌ 读取知识文件 {file_path} 时出错: {e}")
+                    print(f"❌ [文件读取] 读取知识文件 {file_path} 时出错: {e}")
             else:
-                print(f"❌ 文件不存在: {file_path}")
+                print(f"❌ [文件查找] 文件不存在: {file_path}")
+                # 尝试查找相似的文件名
+                try:
+                    dir_files = [f for f in os.listdir(base_path) if f.endswith('.md')]
+                    similar_files = [f for f in dir_files if safe_tag.lower() in f.lower() or f.lower().replace('.md', '') in safe_tag.lower()]
+                    if similar_files:
+                        print(f"🔍 [建议] 发现相似文件: {similar_files}")
+                except Exception as e:
+                    print(f"❌ [建议] 无法搜索相似文件: {e}")
         
         if not context_parts:
-            print("❌ 没有找到任何背景文件")
+            print("❌ [结果] 没有找到任何背景文件")
             return ""
         
         final_context = "\n\n".join(context_parts)
-        print(f"✅ 最终背景文件内容长度: {len(final_context)} 字符")
+        print(f"✅ [结果] 最终背景文件内容长度: {len(final_context)} 字符")
+        print(f"🎯 [版本标识] 云端版本 v2.1 - 增强路径检测")
         return final_context 

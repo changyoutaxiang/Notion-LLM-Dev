@@ -48,6 +48,7 @@ class CloudScheduler:
         self.last_check = None
         
         logger.info("云端调度器初始化完成")
+        logger.info("🎯 [版本标识] 云端版本 v2.1 - 增强背景文件加载")
     
     def load_config_from_env(self):
         """从环境变量加载配置"""
@@ -173,7 +174,9 @@ class CloudScheduler:
             logger.info(f"处理消息: {template_choice} - {content[:50]}...")
             
             # 获取知识库上下文
+            logger.info(f"🔍 [云端调试] 开始获取知识库上下文，标签: {tags}")
             knowledge_context = self.notion_handler.get_context_from_knowledge_base(tags)
+            logger.info(f"🔍 [云端调试] 知识库上下文获取完成，长度: {len(knowledge_context)} 字符")
             
             # 获取基础系统提示词
             base_system_prompt = self._get_system_prompt(template_choice)
