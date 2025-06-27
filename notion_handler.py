@@ -90,19 +90,19 @@ class NotionHandler:
         try:
             url = f"https://api.notion.com/v1/pages/{page_id}"
             
-            # --- 升级内容清洗逻辑 ---
-            # 1. 移除代码块标记
-            cleaned_reply = llm_reply.replace("```", "")
-            # 2. 移除Markdown标题标记 (#) 和列表标记 (*, -)
-            lines = cleaned_reply.split('\n')
-            lines = [line.lstrip('#*-. ') for line in lines]
-            cleaned_reply = '\n'.join(lines)
-            # 3. 去除首尾的空行和空格
-            cleaned_reply = cleaned_reply.strip()
+            # --- 改进的内容清洗逻辑 ---
+            # 1. 基本清理：去除首尾空白
+            cleaned_reply = llm_reply.strip() if llm_reply else ""
             
-            # 4. 如果内容为空，则设置一个默认提示
+            # 2. 长度限制：Notion Rich Text 限制 2000 字符
+            if len(cleaned_reply) > 1900:  # 留一些余量
+                cleaned_reply = cleaned_reply[:1900] + "...\n\n[内容过长，已截断]"
+            
+            # 3. 如果内容为空，设置默认提示
             if not cleaned_reply:
                 cleaned_reply = "[AI未返回有效内容]"
+            
+            print(f"内容清洗: 原长度={len(llm_reply) if llm_reply else 0}, 清洗后长度={len(cleaned_reply)}")
             # --- 清洗结束 ---
 
             # 准备更新数据
@@ -120,6 +120,11 @@ class NotionHandler:
             
             # 如果提供了标题，同时更新标题
             if title:
+                # 确保标题长度不超过限制
+                title = title.strip()
+                if len(title) > 100:  # Notion标题限制
+                    title = title[:100]
+                    
                 properties[self.title_prop] = {
                     "title": [
                         {
@@ -132,11 +137,29 @@ class NotionHandler:
             
             payload = {"properties": properties}
             
+            print(f"准备更新页面: {page_id}")
             response = requests.patch(url, headers=self.headers, json=payload, timeout=30)
-            response.raise_for_status()
             
-            return True
+            if response.status_code == 200:
+                print(f"✅ 页面更新成功: {page_id[:8]}...")
+                return True
+            else:
+                print(f"❌ 页面更新失败: HTTP {response.status_code}")
+                print(f"错误详情: {response.text}")
+                
+                # 尝试解析错误信息
+                try:
+                    error_data = response.json()
+                    if 'message' in error_data:
+                        print(f"Notion错误信息: {error_data['message']}")
+                except:
+                    pass
+                
+                return False
             
+        except requests.exceptions.RequestException as e:
+            print(f"网络请求错误: {e}")
+            return False
         except Exception as e:
             print(f"更新Notion回复时出错: {e}")
             return False

@@ -546,7 +546,17 @@ class NotionLLMGUI:
             config = {
                 "notion": {
                     "api_key": self.notion_key_entry.get(),
-                    "database_id": self.notion_db_entry.get()
+                    "database_id": self.notion_db_entry.get(),
+                    "input_property_name": "输入",
+                    "output_property_name": "回复",
+                    "status_property_name": "状态",
+                    "status_in_progress": "In progress",
+                    "status_done": "Done",
+                    "template_property_name": "模板选择",
+                    "knowledge_base_property_name": "背景",
+                    "model_property_name": "模型",
+                    "title_property_name": "标题",
+                    "knowledge_base_path": "knowledge_base"
                 },
                 "openrouter": {
                     "api_key": self.openrouter_key_entry.get(),
@@ -562,7 +572,16 @@ class NotionLLMGUI:
                     "title_max_length": 20,
                     "title_min_length": 10,
                     "auto_sync_templates": True,
-                    "sync_on_startup": True
+                    "sync_on_startup": True,
+                    "model_mapping": {
+                        "Gemini 2.5 pro": "google/gemini-2.5-pro",
+                        "Gemini 2.5 flash": "google/gemini-2.5-flash",
+                        "Claude 4 sonnet": "anthropic/claude-sonnet-4",
+                        "Chatgpt 4.1": "openai/gpt-4.1",
+                        "Chatgpt O3": "openai/o3",
+                        "Deepseek R1": "deepseek/deepseek-r1-0528",
+                        "Deepseek V3": "deepseek/deepseek-chat-v3-0324"
+                    }
                 }
             }
             
@@ -639,7 +658,17 @@ class NotionLLMGUI:
         self.config = {
             "notion": {
                 "api_key": self.notion_key_entry.get(),
-                "database_id": self.notion_db_entry.get()
+                "database_id": self.notion_db_entry.get(),
+                "input_property_name": "输入",
+                "output_property_name": "回复",
+                "status_property_name": "状态",
+                "status_in_progress": "In progress",
+                "status_done": "Done",
+                "template_property_name": "模板选择",
+                "knowledge_base_property_name": "背景",
+                "model_property_name": "模型",
+                "title_property_name": "标题",
+                "knowledge_base_path": "knowledge_base"
             },
             "openrouter": {
                 "api_key": self.openrouter_key_entry.get(),
@@ -655,7 +684,16 @@ class NotionLLMGUI:
                 "title_max_length": 20,
                 "title_min_length": 10,
                 "auto_sync_templates": True,
-                "sync_on_startup": True
+                "sync_on_startup": True,
+                "model_mapping": {
+                    "Gemini 2.5 pro": "google/gemini-2.5-pro",
+                    "Gemini 2.5 flash": "google/gemini-2.5-flash",
+                    "Claude 4 sonnet": "anthropic/claude-sonnet-4",
+                    "Chatgpt 4.1": "openai/gpt-4.1",
+                    "Chatgpt O3": "openai/o3",
+                    "Deepseek R1": "deepseek/deepseek-r1-0528",
+                    "Deepseek V3": "deepseek/deepseek-chat-v3-0324"
+                }
             }
         }
         

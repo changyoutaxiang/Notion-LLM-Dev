@@ -198,27 +198,25 @@ class MessageScheduler:
                 
                 if update_success:
                     self.message_count += 1
-                    title_info = f" | 标题: {generated_title}" if generated_title else ""
-                    success_msg = f"处理成功 [{template_choice}]{title_info}"
+                    success_msg = f"✅ 消息处理成功 [{template_choice}]: {content[:30]}..."
                     print(success_msg)
-                    
                     if self.gui:
                         self.gui.root.after(0, lambda: self.gui.add_log(success_msg))
-                        
-                        result_info = f"处理完成:\n模板: {template_choice}\n标题: {generated_title or '未生成'}\n回复: {llm_reply[:150]}..."
-                        self.gui.root.after(0, lambda: self.gui.update_current_processing(result_info))
                 else:
-                    error_msg = f"更新Notion失败 [{template_choice}]"
+                    error_msg = f"❌ 更新Notion失败 [{template_choice}]: {content[:30]}..."
                     print(error_msg)
                     if self.gui:
                         self.gui.root.after(0, lambda: self.gui.add_log(error_msg))
             else:
-                # 失败：记录错误日志
-                error_msg = f"LLM处理失败 [{template_choice}]: {llm_reply}"
+                # LLM处理失败
+                error_msg = f"❌ LLM处理失败 [{template_choice}]: {llm_reply}"
                 print(error_msg)
-                
                 if self.gui:
                     self.gui.root.after(0, lambda: self.gui.add_log(error_msg))
+                    
+                # 即使LLM失败，也可以更新一个错误信息到Notion
+                error_reply = f"处理失败：{llm_reply}"
+                self.notion_handler.update_message_reply(page_id, error_reply, "处理失败")
             
             # 处理间隔（避免API限制）
             time.sleep(2)

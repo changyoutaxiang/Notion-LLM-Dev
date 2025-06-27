@@ -56,7 +56,21 @@ class LLMHandler:
             data = response.json()
             
             if "choices" in data and len(data["choices"]) > 0:
-                reply = data["choices"][0]["message"]["content"]
+                choice = data["choices"][0]
+                message = choice.get("message", {})
+                
+                # 优先获取推理内容（适用于Gemini 2.5 Pro等推理模型）
+                reasoning = message.get("reasoning", "")
+                content = message.get("content", "")
+                
+                # 如果有推理内容且主要内容为空或只是换行，使用推理内容
+                if reasoning and (not content.strip() or content.strip() == ""):
+                    reply = reasoning
+                    print(f"📝 使用推理模式内容 (长度: {len(reasoning)})")
+                else:
+                    reply = content
+                    print(f"📝 使用标准内容 (长度: {len(content)})")
+                
                 return True, reply
             else:
                 return False, "LLM响应格式异常"
