@@ -55,5 +55,5 @@ config.json
 *.bak
 *.backup
 
-# 知识库文件夹 (稍后会添加)
-knowledge_base/ 
+# 知识库文件夹 - 已启用，现在需要包含在仓库中
+# knowledge_base/ 
