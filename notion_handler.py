@@ -86,17 +86,11 @@ class NotionHandler:
             return []
     
     def update_message_reply(self, page_id, llm_reply, title=None):
-        """更新LLM回复和标题"""
+        """更新LLM回复和标题 - 将回复写入页面内容而不是属性栏"""
         try:
-            url = f"https://api.notion.com/v1/pages/{page_id}"
-            
             # --- 改进的内容清洗逻辑 ---
             # 1. 基本清理：去除首尾空白
             cleaned_reply = llm_reply.strip() if llm_reply else ""
-            
-            # 2. 长度限制：Notion Rich Text 限制 2000 字符
-            if len(cleaned_reply) > 1900:  # 留一些余量
-                cleaned_reply = cleaned_reply[:1900] + "...\n\n[内容过长，已截断]"
             
             # 3. 如果内容为空，设置默认提示
             if not cleaned_reply:
@@ -105,17 +99,18 @@ class NotionHandler:
             print(f"内容清洗: 原长度={len(llm_reply) if llm_reply else 0}, 清洗后长度={len(cleaned_reply)}")
             # --- 清洗结束 ---
 
-            # 准备更新数据
-            properties = {
-                self.output_prop: {
-                    "rich_text": [
-                        {
-                            "text": {
-                                "content": cleaned_reply
-                            }
+            # 第一步：更新标题和清空回复属性栏
+            properties = {}
+            
+            # 清空回复属性栏，因为内容将存储在页面内容中
+            properties[self.output_prop] = {
+                "rich_text": [
+                    {
+                        "text": {
+                            "content": "✅ 已回复 (查看页面内容)"
                         }
-                    ]
-                }
+                    }
+                ]
             }
             
             # 如果提供了标题，同时更新标题
@@ -135,16 +130,118 @@ class NotionHandler:
                     ]
                 }
             
+            # 更新页面属性
+            page_url = f"https://api.notion.com/v1/pages/{page_id}"
             payload = {"properties": properties}
             
-            print(f"准备更新页面: {page_id}")
-            response = requests.patch(url, headers=self.headers, json=payload, timeout=30)
+            print(f"准备更新页面属性: {page_id}")
+            response = requests.patch(page_url, headers=self.headers, json=payload, timeout=30)
             
-            if response.status_code == 200:
-                print(f"✅ 页面更新成功: {page_id[:8]}...")
+            if response.status_code != 200:
+                print(f"❌ 页面属性更新失败: HTTP {response.status_code}")
+                print(f"错误详情: {response.text}")
+                return False
+            
+            # 第二步：将LLM回复内容写入页面内容块
+            success = self._append_content_to_page(page_id, cleaned_reply)
+            
+            if success:
+                print(f"✅ 页面内容更新成功: {page_id[:8]}...")
                 return True
             else:
-                print(f"❌ 页面更新失败: HTTP {response.status_code}")
+                print(f"❌ 页面内容更新失败: {page_id[:8]}...")
+                return False
+                
+        except requests.exceptions.RequestException as e:
+            print(f"网络请求错误: {e}")
+            return False
+        except Exception as e:
+            print(f"更新Notion回复时出错: {e}")
+            return False
+
+    def _append_content_to_page(self, page_id, content):
+        """将内容追加到页面内容块中"""
+        try:
+            # 首先获取页面现有的内容块
+            blocks_url = f"https://api.notion.com/v1/blocks/{page_id}/children"
+            
+            # 将长文本分割成多个段落，因为Notion对单个文本块有长度限制
+            paragraphs = self._split_content_into_paragraphs(content)
+            
+            # 构建要添加的内容块
+            children = []
+            
+            # 添加分割线
+            children.append({
+                "object": "block",
+                "type": "divider",
+                "divider": {}
+            })
+            
+            # 添加标题
+            children.append({
+                "object": "block",
+                "type": "heading_2",
+                "heading_2": {
+                    "rich_text": [
+                        {
+                            "type": "text",
+                            "text": {
+                                "content": "🤖 AI 回复"
+                            }
+                        }
+                    ]
+                }
+            })
+            
+            # 添加内容段落
+            for paragraph in paragraphs:
+                if paragraph.strip():  # 只添加非空段落
+                    children.append({
+                        "object": "block",
+                        "type": "paragraph",
+                        "paragraph": {
+                            "rich_text": [
+                                {
+                                    "type": "text",
+                                    "text": {
+                                        "content": paragraph
+                                    }
+                                }
+                            ]
+                        }
+                    })
+            
+            # 添加时间戳
+            timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+            children.append({
+                "object": "block",
+                "type": "paragraph",
+                "paragraph": {
+                    "rich_text": [
+                        {
+                            "type": "text",
+                            "text": {
+                                "content": f"📅 生成时间：{timestamp}"
+                            },
+                            "annotations": {
+                                "color": "gray"
+                            }
+                        }
+                    ]
+                }
+            })
+            
+            # 发送请求添加内容块
+            payload = {"children": children}
+            
+            response = requests.patch(blocks_url, headers=self.headers, json=payload, timeout=30)
+            
+            if response.status_code == 200:
+                print(f"✅ 页面内容追加成功")
+                return True
+            else:
+                print(f"❌ 页面内容追加失败: HTTP {response.status_code}")
                 print(f"错误详情: {response.text}")
                 
                 # 尝试解析错误信息
@@ -156,13 +253,67 @@ class NotionHandler:
                     pass
                 
                 return False
-            
-        except requests.exceptions.RequestException as e:
-            print(f"网络请求错误: {e}")
-            return False
+                
         except Exception as e:
-            print(f"更新Notion回复时出错: {e}")
+            print(f"追加页面内容时出错: {e}")
             return False
+
+    def _split_content_into_paragraphs(self, content, max_length=1900):
+        """将长文本分割成适合Notion的段落"""
+        if not content:
+            return []
+        
+        # 如果内容不太长，直接返回
+        if len(content) <= max_length:
+            return [content]
+        
+        # 按段落分割（双换行符）
+        paragraphs = content.split('\n\n')
+        result = []
+        current_chunk = ""
+        
+        for paragraph in paragraphs:
+            # 如果当前段落本身就很长，需要进一步分割
+            if len(paragraph) > max_length:
+                # 先保存当前chunk
+                if current_chunk:
+                    result.append(current_chunk.strip())
+                    current_chunk = ""
+                
+                # 分割长段落
+                sentences = paragraph.split('。')
+                temp_chunk = ""
+                
+                for sentence in sentences:
+                    if sentence:
+                        sentence = sentence + '。' if not sentence.endswith('。') else sentence
+                        if len(temp_chunk + sentence) <= max_length:
+                            temp_chunk += sentence
+                        else:
+                            if temp_chunk:
+                                result.append(temp_chunk.strip())
+                            temp_chunk = sentence
+                
+                if temp_chunk:
+                    result.append(temp_chunk.strip())
+            else:
+                # 检查添加这个段落是否会超出长度限制
+                if len(current_chunk + '\n\n' + paragraph) <= max_length:
+                    if current_chunk:
+                        current_chunk += '\n\n' + paragraph
+                    else:
+                        current_chunk = paragraph
+                else:
+                    # 保存当前chunk并开始新的
+                    if current_chunk:
+                        result.append(current_chunk.strip())
+                    current_chunk = paragraph
+        
+        # 添加最后的chunk
+        if current_chunk:
+            result.append(current_chunk.strip())
+        
+        return result
     
     def _extract_message_data(self, page):
         """从Notion页面中提取消息数据"""
