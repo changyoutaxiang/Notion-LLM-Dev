@@ -6,64 +6,67 @@ import os
 class NotionHandler:
     """处理与Notion API的所有交互"""
     
-    def __init__(self, api_key, database_id, knowledge_base_property="标签", model_selection_property="模型"):
-        self.api_key = api_key
-        self.database_id = database_id
-        self.knowledge_base_property = knowledge_base_property
-        self.model_selection_property = model_selection_property
+    def __init__(self, config):
+        notion_config = config['notion']
+        self.api_key = notion_config['api_key']
+        self.database_id = notion_config['database_id']
+        
+        # 从配置中加载所有需要的属性名称
+        self.input_prop = notion_config['input_property_name']
+        self.output_prop = notion_config['output_property_name']
+        self.template_prop = notion_config['template_property_name']
+        self.knowledge_prop = notion_config['knowledge_base_property_name']
+        self.model_prop = notion_config['model_property_name']
+        self.title_prop = notion_config['title_property_name']
+
         self.headers = {
-            "Authorization": f"Bearer {api_key}",
+            "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
             "Notion-Version": "2022-06-28"
         }
     
-    def get_pending_messages(self, require_template_selection=True):
+    def get_pending_messages(self):
         """获取待处理的消息"""
         try:
             url = f"https://api.notion.com/v1/databases/{self.database_id}/query"
             
-            # 查询条件：LLM 回复字段为空 AND 模板选择不为空（双异步模式）
-            if require_template_selection:
-                payload = {
-                    "filter": {
-                        "and": [
-                            {
-                                "property": "LLM 回复",
-                                "rich_text": {
-                                    "is_empty": True
-                                }
-                            },
-                            {
-                                "property": "模板选择",
-                                "select": {
-                                    "is_not_empty": True
-                                }
+            # 更新查询逻辑：当输出为空，且另外三个关键字段都已选择时，触发任务
+            payload = {
+                "filter": {
+                    "and": [
+                        {
+                            "property": self.output_prop,
+                            "rich_text": {
+                                "is_empty": True
                             }
-                        ]
-                    },
-                    "sorts": [
+                        },
                         {
-                            "timestamp": "created_time",
-                            "direction": "ascending"
+                            "property": self.template_prop,
+                            "select": {
+                                "is_not_empty": True
+                            }
+                        },
+                        {
+                            "property": self.model_prop,
+                            "select": {
+                                "is_not_empty": True
+                            }
+                        },
+                        {
+                            "property": self.knowledge_prop,
+                            "multi_select": {
+                                "is_not_empty": True
+                            }
                         }
                     ]
-                }
-            else:
-                # 兼容模式：只检查LLM回复为空
-                payload = {
-                    "filter": {
-                        "property": "LLM 回复",
-                        "rich_text": {
-                            "is_empty": True
-                        }
-                    },
-                    "sorts": [
-                        {
-                            "timestamp": "created_time",
-                            "direction": "ascending"
-                        }
-                    ]
-                }
+                },
+                "sorts": [
+                    {
+                        "timestamp": "created_time",
+                        "direction": "ascending"
+                    }
+                ]
+            }
             
             response = requests.post(url, headers=self.headers, json=payload, timeout=30)
             response.raise_for_status()
@@ -104,7 +107,7 @@ class NotionHandler:
 
             # 准备更新数据
             properties = {
-                "LLM 回复": {
+                self.output_prop: {
                     "rich_text": [
                         {
                             "text": {
@@ -117,7 +120,7 @@ class NotionHandler:
             
             # 如果提供了标题，同时更新标题
             if title:
-                properties["标题"] = {
+                properties[self.title_prop] = {
                     "title": [
                         {
                             "text": {
@@ -144,31 +147,31 @@ class NotionHandler:
             properties = page.get("properties", {})
             
             # 提取标题
-            title_prop = properties.get("标题", {})
+            title_prop = properties.get(self.title_prop, {})
             title = ""
             if title_prop.get("title"):
                 title = title_prop["title"][0]["text"]["content"]
             
             # 提取输入内容
-            content_prop = properties.get("输入内容", {})
+            content_prop = properties.get(self.input_prop, {})
             content = ""
             if content_prop.get("rich_text"):
                 content = content_prop["rich_text"][0]["text"]["content"]
             
             # 提取模板选择
-            template_prop = properties.get("模板选择", {})
+            template_prop = properties.get(self.template_prop, {})
             template_choice = ""
             if template_prop.get("select") and template_prop["select"]:
                 template_choice = template_prop["select"]["name"]
             
             # 提取标签
-            tags_prop = properties.get(self.knowledge_base_property, {})
+            tags_prop = properties.get(self.knowledge_prop, {})
             tags = []
             if tags_prop.get("multi_select"):
                 tags = [tag["name"] for tag in tags_prop["multi_select"]]
 
             # 提取模型选择
-            model_prop = properties.get(self.model_selection_property, {})
+            model_prop = properties.get(self.model_prop, {})
             model_choice = ""
             if model_prop.get("select") and model_prop["select"]:
                 model_choice = model_prop["select"]["name"]
@@ -195,21 +198,37 @@ class NotionHandler:
         try:
             url = f"https://api.notion.com/v1/databases/{self.database_id}/query"
             
-            # 查询条件：LLM回复为空 AND 模板选择为空
+            # 查询条件：LLM回复为空 AND (模板选择为空 OR 模型选择为空 or 背景为空)
             payload = {
                 "filter": {
                     "and": [
                         {
-                            "property": "LLM 回复",
+                            "property": self.output_prop,
                             "rich_text": {
                                 "is_empty": True
                             }
                         },
                         {
-                            "property": "模板选择",
-                            "select": {
-                                "is_empty": True
-                            }
+                            "or": [
+                                {
+                                    "property": self.template_prop,
+                                    "select": {
+                                        "is_empty": True
+                                    }
+                                },
+                                {
+                                    "property": self.model_prop,
+                                    "select": {
+                                        "is_empty": True
+                                    }
+                                },
+                                {
+                                    "property": self.knowledge_prop,
+                                    "multi_select": {
+                                        "is_empty": True
+                                    }
+                                }
+                            ]
                         }
                     ]
                 }

@@ -13,22 +13,11 @@ class MessageScheduler:
         self.gui = gui
         self.is_running = False
         
-        # 获取知识库属性名称
-        knowledge_base_property = config.get("settings", {}).get("knowledge_base_property_name", "标签")
-        # 获取模型选择属性名称
-        model_selection_property = config.get("settings", {}).get("model_selection_property_name", "模型")
-        
         # 初始化处理器
-        self.notion_handler = NotionHandler(
-            config["notion"]["api_key"],
-            config["notion"]["database_id"],
-            knowledge_base_property=knowledge_base_property,
-            model_selection_property=model_selection_property
-        )
+        self.notion_handler = NotionHandler(config)
         
         self.llm_handler = LLMHandler(
-            config["openrouter"]["api_key"],
-            config["openrouter"]["model"]
+            config["openrouter"]["api_key"]
         )
         
         self.template_manager = TemplateManager()
@@ -81,19 +70,15 @@ class MessageScheduler:
     def check_and_process_messages(self):
         """检查并处理消息"""
         try:
-            # 检查是否启用模板选择要求
-            require_template = self.config.get("settings", {}).get("require_template_selection", True)
-            
             # 获取待处理消息
-            pending_messages = self.notion_handler.get_pending_messages(require_template)
+            pending_messages = self.notion_handler.get_pending_messages()
             
-            # 获取等待模板选择的数量
-            if require_template:
-                self.waiting_count = self.notion_handler.get_waiting_count()
+            # 获取等待处理的数量
+            self.waiting_count = self.notion_handler.get_waiting_count()
             
             if not pending_messages:
-                if require_template and self.waiting_count > 0:
-                    log_msg = f"等待模板选择: {self.waiting_count}条，待处理: 0条"
+                if self.waiting_count > 0:
+                    log_msg = f"等待条件满足: {self.waiting_count}条，待处理: 0条"
                 else:
                     log_msg = "没有待处理的消息"
                 print(log_msg)
@@ -102,7 +87,7 @@ class MessageScheduler:
                     self.gui.root.after(0, lambda: self.gui.update_current_processing("等待新消息..."))
                 return
             
-            status_msg = f"等待模板选择: {self.waiting_count}条，待处理: {len(pending_messages)}条" if require_template else f"发现 {len(pending_messages)} 条待处理消息"
+            status_msg = f"等待条件满足: {self.waiting_count}条，待处理: {len(pending_messages)}条"
             print(status_msg)
             if self.gui:
                 self.gui.root.after(0, lambda: self.gui.add_log(status_msg))
