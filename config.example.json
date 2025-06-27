@@ -1,0 +1,22 @@
+{
+  "notion": {
+    "api_key": "请填入你的Notion API密钥",
+    "database_id": "请填入你的Notion数据库ID"
+  },
+  "openrouter": {
+    "api_key": "请填入你的OpenRouter API密钥",
+    "model": "meta-llama/llama-3.1-8b-instruct:free"
+  },
+  "settings": {
+    "check_interval": 30,
+    "max_retries": 3,
+    "request_timeout": 30,
+    "system_prompt": "你是一个智能助手，请认真回答用户的问题。请用中文回复。",
+    "require_template_selection": true,
+    "auto_generate_title": true,
+    "title_max_length": 20,
+    "title_min_length": 10,
+    "auto_sync_templates": true,
+    "sync_on_startup": true
+  }
+} 
