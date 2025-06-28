@@ -14,7 +14,7 @@ COPY llm_handler.py .
 COPY template_manager.py .
 COPY templates.json .
 
-# 复制知识库目录
+# 复制知识库目录（从根目录）
 COPY knowledge_base/ ./knowledge_base/
 
 # 安装依赖
