@@ -14,6 +14,13 @@ COPY llm_handler.py .
 COPY template_manager.py .
 COPY templates.json .
 
+# 🧠 复制智能知识库系统文件 (v3.0新增)
+COPY notion_knowledge_db.py .
+COPY migrate_knowledge_to_notion.py .
+COPY test_knowledge_connection.py .
+COPY test_smart_search.py .
+COPY debug_notion_fields.py .
+
 # 复制知识库目录（从根目录）
 COPY knowledge_base/ ./knowledge_base/
 

@@ -7,6 +7,9 @@ class NotionHandler:
     """处理与Notion API的所有交互"""
     
     def __init__(self, config):
+        # 保存完整配置以便后续使用
+        self.config = config
+        
         notion_config = config['notion']
         self.api_key = notion_config['api_key']
         self.database_id = notion_config['database_id']
@@ -472,7 +475,9 @@ class NotionHandler:
     def get_context_from_knowledge_base(self, tags: list[str]) -> str:
         """
         根据标签从知识库中获取上下文。
-        简单实现：标签名直接对应 knowledge_base 文件夹下的 .md 文件名。
+        支持新旧两种模式：
+        - 新模式：智能语义检索 (enable_new_system=true)
+        - 旧模式：文件名匹配 (enable_new_system=false)
         特殊处理：如果标签包含"无"，则跳过知识库读取。
         """
         # 检查是否包含"无"标签
@@ -480,6 +485,57 @@ class NotionHandler:
             print("🚫 检测到'无'标签，跳过知识库读取")
             return ""
         
+        # 检查是否启用新系统
+        enable_new_system = self.config.get('knowledge_search', {}).get('enable_new_system', False)
+        
+        if enable_new_system:
+            print("🧠 使用智能知识检索系统")
+            return self._get_context_from_notion_knowledge_base(tags)
+        else:
+            print("📁 使用传统文件匹配系统")
+            return self._get_context_from_file_system(tags)
+    
+    def _get_context_from_notion_knowledge_base(self, tags: list[str]) -> str:
+        """从Notion知识库获取智能匹配的上下文"""
+        try:
+            from notion_knowledge_db import NotionKnowledgeDB
+            
+            # 创建知识库实例
+            knowledge_db = NotionKnowledgeDB(self.config)
+            
+            # 使用标签作为关键词进行智能搜索
+            knowledge_items = knowledge_db.search_knowledge_by_keywords(tags)
+            
+            if not knowledge_items:
+                print("❌ 未找到相关知识条目")
+                return ""
+            
+            # 组装上下文
+            context_parts = []
+            for item in knowledge_items[:3]:  # 最多取前3个最相关的
+                title = item['title']
+                content = item['content']
+                
+                # 智能截取相关片段
+                snippet = self._extract_relevant_snippet(content, tags, max_length=800)
+                context_part = f"--- 来自知识库: {title} ---\n{snippet}"
+                context_parts.append(context_part)
+                
+                print(f"✅ 加载知识: {title} ({len(snippet)} 字符)")
+                
+                # 更新使用频率
+                knowledge_db.update_usage_frequency(item['id'])
+            
+            final_context = "\n\n".join(context_parts)
+            print(f"✅ 智能检索完成，共 {len(knowledge_items)} 个知识条目，{len(final_context)} 字符")
+            return final_context
+            
+        except Exception as e:
+            print(f"❌ 智能检索失败，降级到文件系统: {e}")
+            return self._get_context_from_file_system(tags)
+    
+    def _get_context_from_file_system(self, tags: list[str]) -> str:
+        """从本地文件系统获取上下文（原有实现）"""
         # 获取当前脚本所在目录，然后构建knowledge_base路径
         current_dir = os.path.dirname(os.path.abspath(__file__))
         base_path = os.path.join(current_dir, "knowledge_base")
@@ -518,6 +574,33 @@ class NotionHandler:
         final_context = "\n\n".join(context_parts)
         print(f"✅ 最终背景文件内容长度: {len(final_context)} 字符")
         return final_context
+    
+    def _extract_relevant_snippet(self, content: str, keywords: list[str], max_length: int = 800) -> str:
+        """从内容中提取相关片段"""
+        if len(content) <= max_length:
+            return content
+        
+        # 按段落分割
+        paragraphs = content.split('\n\n')
+        relevant_paragraphs = []
+        
+        for paragraph in paragraphs:
+            # 检查段落是否包含关键词
+            paragraph_lower = paragraph.lower()
+            if any(keyword.lower() in paragraph_lower for keyword in keywords):
+                relevant_paragraphs.append(paragraph)
+        
+        # 如果找到相关段落，优先使用
+        if relevant_paragraphs:
+            snippet = '\n\n'.join(relevant_paragraphs)
+            if len(snippet) <= max_length:
+                return snippet
+            else:
+                # 截取到最大长度
+                return snippet[:max_length] + '\n\n（... 内容过长已截断）'
+        
+        # 如果没有找到相关段落，返回开头部分
+        return content[:max_length] + '\n\n（... 内容过长已截断）'
 
     def get_templates_from_notion(self):
         """从Notion模板库数据库获取所有模板"""

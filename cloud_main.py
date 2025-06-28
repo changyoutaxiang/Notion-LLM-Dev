@@ -91,6 +91,30 @@ class CloudScheduler:
                 "model_mapping": self.load_model_mapping(),
                 "auto_sync_templates": os.getenv("AUTO_SYNC_TEMPLATES", "true").lower() == "true",
                 "sync_interval_hours": int(os.getenv("SYNC_INTERVAL_HOURS", "24"))
+            },
+            # 🧠 新增：智能知识库系统配置 (v3.0)
+            "knowledge_search": {
+                "enable_new_system": os.getenv("ENABLE_NEW_KNOWLEDGE_SYSTEM", "true").lower() == "true",
+                "knowledge_database_id": os.getenv("NOTION_KNOWLEDGE_DATABASE_ID", ""),
+                "category_database_id": os.getenv("NOTION_CATEGORY_DATABASE_ID", ""),
+                "max_context_length": int(os.getenv("KNOWLEDGE_MAX_CONTEXT_LENGTH", "4000")),
+                "max_snippets": int(os.getenv("KNOWLEDGE_MAX_SNIPPETS", "5")),
+                "similarity_threshold": float(os.getenv("KNOWLEDGE_SIMILARITY_THRESHOLD", "0.3")),
+                "snippet_max_length": int(os.getenv("KNOWLEDGE_SNIPPET_MAX_LENGTH", "800")),
+                "enable_semantic_search": os.getenv("ENABLE_SEMANTIC_SEARCH", "true").lower() == "true",
+                "enable_usage_weighting": os.getenv("ENABLE_USAGE_WEIGHTING", "true").lower() == "true",
+                # 知识库属性名称映射
+                "property_names": {
+                    "title": os.getenv("NOTION_KNOWLEDGE_TITLE_PROP", "知识标题"),
+                    "category": os.getenv("NOTION_KNOWLEDGE_CATEGORY_PROP", "知识分类"),
+                    "subcategory": os.getenv("NOTION_KNOWLEDGE_SUBCATEGORY_PROP", "知识子类"),
+                    "keywords": os.getenv("NOTION_KNOWLEDGE_KEYWORDS_PROP", "关键词"),
+                    "scenarios": os.getenv("NOTION_KNOWLEDGE_SCENARIOS_PROP", "适用场景"),
+                    "priority": os.getenv("NOTION_KNOWLEDGE_PRIORITY_PROP", "优先级"),
+                    "status": os.getenv("NOTION_KNOWLEDGE_STATUS_PROP", "状态"),
+                    "relations": os.getenv("NOTION_KNOWLEDGE_RELATIONS_PROP", "关联知识"),
+                    "usage_frequency": os.getenv("NOTION_KNOWLEDGE_USAGE_PROP", "使用频率")
+                }
             }
         }
         
@@ -109,6 +133,15 @@ class CloudScheduler:
         if missing_vars:
             logger.error(f"缺少必要的环境变量: {', '.join(missing_vars)}")
             raise ValueError(f"Missing required environment variables: {', '.join(missing_vars)}")
+        
+        # 🧠 检查智能知识库配置
+        if config["knowledge_search"]["enable_new_system"]:
+            knowledge_db_id = config["knowledge_search"]["knowledge_database_id"]
+            if knowledge_db_id:
+                logger.info("🧠 智能知识库系统已启用")
+            else:
+                logger.warning("⚠️  智能知识库系统已启用，但缺少知识库数据库ID，将降级为传统模式")
+                config["knowledge_search"]["enable_new_system"] = False
         
         logger.info("配置加载成功")
         return config

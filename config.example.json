@@ -17,7 +17,19 @@
     "template_category_property": "分类",
     "template_prompt_property": "提示词",
     "template_description_property": "描述",
-    "template_status_property": "状态"
+    "template_status_property": "状态",
+    
+    "knowledge_database_id": "2203bbbae6d2807fbdc1efc299de259d",
+    "category_database_id": "2203bbbae6d280398472fd7ffed521bc",
+    "knowledge_title_property": "知识标题",
+    "knowledge_category_property": "知识分类",
+    "knowledge_subcategory_property": "知识子类",
+    "knowledge_keywords_property": "关键词",
+    "knowledge_scenarios_property": "适用场景",
+    "knowledge_priority_property": "优先级",
+    "knowledge_status_property": "状态",
+    "knowledge_relations_property": "关联知识",
+    "knowledge_usage_property": "使用频率"
   },
   "openrouter": {
     "api_key": "请填入你的OpenRouter API密钥"
@@ -41,5 +53,14 @@
       "Deepseek R1": "deepseek/deepseek-r1-0528",
       "Deepseek V3": "deepseek/deepseek-chat-v3-0324"
     }
+  },
+  "knowledge_search": {
+    "max_context_length": 4000,
+    "max_snippets": 5,
+    "similarity_threshold": 0.3,
+    "enable_semantic_search": true,
+    "enable_usage_weighting": true,
+    "snippet_max_length": 800,
+    "enable_new_system": false
   }
 } 
