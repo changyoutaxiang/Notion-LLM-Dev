@@ -33,36 +33,47 @@ NOTION_TITLE_PROP=标题
 MODEL_MAPPING={"Gemini 2.5 pro": "google/gemini-2.5-pro"}
 ```
 
-### 2. 部署文件
-将以下文件上传到Zeabur：
-- `cloud_main.py` (主程序)
-- `notion_handler.py`
-- `llm_handler.py` 
-- `template_manager.py`
-- `templates.json`
-- `requirements_cloud.txt`
-- `knowledge_base/` 文件夹
+### 2. 自动化部署（推荐）
+项目已配置完整的 Dockerfile，支持一键部署：
+- ✅ 自动从正确位置复制所有必要文件
+- ✅ 自动安装依赖包
+- ✅ 自动配置运行环境
+- ✅ 支持 Git 推送自动重新部署
+
+**部署的文件包括：**
+- `cloud_main.py` (云端主程序，来自 zeabur_deploy/)
+- `notion_handler.py` (来自根目录)
+- `llm_handler.py` (来自根目录)
+- `template_manager.py` (来自根目录)
+- `templates.json` (来自根目录)
+- `knowledge_base/` (来自根目录)
+- `requirements_cloud.txt` (来自 zeabur_deploy/)
 
 ## 🔧 部署步骤
 
-### 1. 创建Zeabur项目
+### 1. Git部署（推荐）
 1. 登录 [Zeabur](https://zeabur.com)
-2. 创建新项目
-3. 选择Git仓库部署或文件上传
+2. 创建新项目 → "Deploy from Git"
+3. 连接你的 GitHub 仓库
+4. 选择分支：`main`
+5. Zeabur 会自动识别 Dockerfile 并构建
 
 ### 2. 配置运行环境
-1. 选择Python运行时
-2. 设置启动命令：`python cloud_main.py`
-3. 依赖文件：`requirements_cloud.txt`
+Dockerfile 已自动配置：
+- ✅ Python 3.9 运行时
+- ✅ 启动命令：`python cloud_main.py`
+- ✅ 端口：8080
+- ✅ 依赖安装：`requirements_cloud.txt`
 
 ### 3. 设置环境变量
 在Zeabur控制台的Environment页面添加所有必需的环境变量
 
-### 4. 部署应用
-点击部署，Zeabur会自动：
-- 安装依赖
-- 启动应用
-- 提供访问域名
+### 4. 自动部署
+Zeabur会自动：
+- 📦 构建Docker镜像
+- 📋 安装所有依赖
+- 🚀 启动应用程序
+- 🌐 提供访问域名
 
 ## 🌐 API接口
 
@@ -101,6 +112,7 @@ POST https://你的域名/process-once
 - ✅ 自动重启和恢复
 - ✅ 可通过API远程控制
 - ✅ 多地区部署可选
+- ✅ Git推送自动重新部署
 
 ### 📊 监控与日志：
 - 实时日志查看
@@ -112,16 +124,22 @@ POST https://你的域名/process-once
 
 ### 常见问题：
 
-1. **启动失败**
+1. **构建失败**
+   - 检查 Dockerfile 语法是否正确
+   - 确认所有必要文件都在仓库中
+   - 查看构建日志中的具体错误
+
+2. **启动失败**
    - 检查环境变量是否正确设置
    - 查看日志中的错误信息
 
-2. **无法处理消息**
+3. **无法处理消息**
    - 验证Notion API密钥和数据库ID
    - 检查OpenRouter API密钥
 
-3. **知识库文件缺失**
-   - 确保上传了完整的`knowledge_base`文件夹
+4. **知识库文件缺失**
+   - 确保 `knowledge_base/` 目录在根目录下
+   - 检查文件是否正确推送到 Git 仓库
 
 ### 查看日志：
 ```bash
@@ -136,9 +154,25 @@ curl https://你的域名/status
 2. **监控健康**：设置外部监控访问/health接口
 3. **备份配置**：保存好所有环境变量配置
 4. **日志监控**：定期查看应用日志确保正常运行
+5. **版本管理**：使用有意义的Git提交信息，便于追踪部署
 
 ## 🔄 更新部署
 
-1. 修改代码后提交到Git仓库
-2. Zeabur会自动检测变更并重新部署
-3. 或者直接上传新文件覆盖 
+### 自动更新（推荐）
+1. 本地修改代码并测试
+2. 提交到 Git 仓库：`git push origin main`
+3. Zeabur 自动检测变更并重新部署
+4. 零停机时间更新
+
+### 手动重新部署
+在 Zeabur 控制台点击 "Redeploy" 按钮
+
+---
+
+## 📝 版本更新说明
+
+### v2.3 更新
+- ✅ 修复了 Dockerfile 文件路径问题
+- ✅ 优化了构建流程，减少重复文件
+- ✅ 支持完全自动化的 Git 部署
+- ✅ 更好的错误处理和日志记录 
