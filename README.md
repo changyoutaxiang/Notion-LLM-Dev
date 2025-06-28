@@ -1,3 +1,151 @@
+# Notion-LLM 异步工作流助手 - 🚧 开发版
+
+> ⚠️ **这是开发版本仓库** - 用于功能迭代、测试和实验性功能开发
+
+🔗 **稳定版本仓库**: [changyoutaxiang/-notion-NotionHandler](https://github.com/changyoutaxiang/-notion-NotionHandler) (推荐日常使用)
+
+## 🎯 仓库说明
+
+### 📊 版本分工
+| 仓库类型 | 仓库名称 | 用途 | 稳定性 | 更新频率 |
+|---------|---------|------|---------|----------|
+| **生产版** | `-notion-NotionHandler` | 日常使用 | 🟢 高度稳定 | 重大版本发布 |
+| **开发版** | `Notion-LLM-Dev` | 功能开发 | 🟡 持续迭代 | 频繁更新 |
+
+### 🌿 分支策略
+- **`main`**: 相对稳定的开发版本，经过基本测试
+- **`development`**: 日常开发分支，最新功能和实验性改动
+- **`feature/*`**: 特性开发分支（按需创建）
+
+## 🚀 最新版本: v2.2
+
+### ✨ 核心功能
+- **🔄 自动化Notion工作流**: 自动监听和处理Notion数据库条目
+- **🤖 多模型LLM支持**: Gemini、Claude、ChatGPT、DeepSeek等
+- **📚 本地知识库(RAG)**: 智能上下文注入
+- **🎯 Notion模板库管理**: 完整的模板CRUD和同步功能
+- **🖥️ 现代化GUI界面**: 实时监控和管理
+
+### 🔗 Notion模板库管理（v2.2新功能）
+- 📥 **从Notion同步**: 将Notion中的模板同步到本地
+- 📤 **同步到Notion**: 将本地模板推送到Notion
+- 🏷️ **分类管理**: 按类别组织模板（基础、管理、心理等）
+- ⚡ **状态控制**: 启用/禁用模板功能
+- 🔄 **自动同步**: 模板选项自动更新到主数据库
+
+## 🛠️ 开发环境设置
+
+### 环境要求
+```bash
+Python 3.8+
+pip install -r requirements.txt
+```
+
+### 配置文件
+复制 `config.example.json` 为 `config.json` 并配置：
+- Notion API密钥和数据库ID
+- OpenRouter API密钥
+- 模板库数据库配置
+
+### 启动开发版本
+```bash
+# GUI模式
+python gui.py
+
+# 命令行模式  
+python main.py
+
+# 云端模式
+python cloud_main.py
+```
+
+## 📋 开发工作流
+
+### 🔄 日常开发
+```bash
+# 切换到开发分支
+git checkout development
+
+# 拉取最新更改
+git pull dev development  
+
+# 开发新功能...
+# 提交更改
+git add .
+git commit -m "feat: 新功能描述"
+git push dev development
+```
+
+### 🚀 版本发布流程
+```bash
+# 1. 合并到main分支
+git checkout main
+git merge development
+git push dev main
+
+# 2. 推送到生产版仓库（重大版本）
+git push origin main
+
+# 3. 创建版本标签
+git tag -a v2.3.0 -m "版本描述"
+git push dev v2.3.0
+git push origin v2.3.0
+```
+
+### 🎯 特性开发
+```bash
+# 创建特性分支
+git checkout -b feature/新功能名称
+
+# 开发完成后合并到development
+git checkout development
+git merge feature/新功能名称
+git push dev development
+```
+
+## 🐛 问题反馈
+
+开发过程中遇到的问题：
+1. **创建Issue**: 在本仓库创建问题报告
+2. **开发讨论**: 使用Discussions功能
+3. **Pull Request**: 提交代码改进
+
+## 📝 更新日志
+
+### v2.2.0 (当前版本)
+- ✨ 新增：完整Notion模板库管理系统
+- 🔄 新增：双向同步功能
+- 🏗️ 优化：架构重构和代码清理
+- 📖 新增：详细设计文档
+
+### v2.1.0
+- 🔍 新增：调试工具和上下文验证
+- ✅ 修复：API密钥和背景文件加载问题
+- 🚀 优化：性能改进和错误处理
+
+## 🎯 路线图
+
+### 近期计划 (v2.3)
+- [ ] 模板版本历史功能
+- [ ] 批量模板操作
+- [ ] 模板分享和导入导出
+- [ ] 更好的GUI用户体验
+
+### 中期计划 (v2.4+)
+- [ ] 多用户协作功能
+- [ ] 模板统计和分析
+- [ ] API接口开放
+- [ ] 插件系统
+
+---
+
+**⚠️ 重要提醒**: 
+- 本仓库为**开发版本**，功能可能不稳定
+- **日常使用**请使用[稳定版仓库](https://github.com/changyoutaxiang/-notion-NotionHandler)
+- 开发版本用于**测试新功能**和**快速迭代**
+
+**📧 联系**: 如有问题或建议，欢迎提交Issue或讨论
+
 # Notion-LLM 异步工作流助手
 
 🤖 一个高度可配置的自动化工具，旨在连接Notion数据库、本地知识库和大型语言模型（LLM），实现复杂的异步工作流。
