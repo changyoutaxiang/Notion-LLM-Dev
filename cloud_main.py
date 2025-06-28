@@ -40,15 +40,21 @@ class CloudScheduler:
             self.config["openrouter"]["api_key"],
             self.config["openrouter"]["model"]
         )
-        self.template_manager = TemplateManager()
+        
+        # 🔥 新增：正确初始化TemplateManager并连接NotionHandler
+        self.template_manager = TemplateManager(notion_handler=self.notion_handler)
         
         # 运行状态
         self.is_running = False
         self.message_count = 0
         self.last_check = None
+        self.last_template_sync = None
         
         logger.info("云端调度器初始化完成")
-        logger.info("🎯 [版本标识] 本地版本 v2.1 - 增强背景文件加载")
+        logger.info("🎯 [版本标识] 本地版本 v2.2 - 模板库管理功能")
+        
+        # 🔥 新增：启动时自动同步模板库
+        self.auto_sync_templates_on_startup()
         
         # 本地版本无需紧急诊断功能
     
@@ -64,6 +70,12 @@ class CloudScheduler:
                 "knowledge_base_property_name": os.getenv("NOTION_KNOWLEDGE_PROP", "背景"),
                 "model_property_name": os.getenv("NOTION_MODEL_PROP", "模型"),
                 "title_property_name": os.getenv("NOTION_TITLE_PROP", "标题"),
+                "template_database_id": os.getenv("NOTION_TEMPLATE_DATABASE_ID", ""),
+                "template_name_property": os.getenv("NOTION_TEMPLATE_NAME_PROP", "模板名称"),
+                "template_category_property": os.getenv("NOTION_TEMPLATE_CATEGORY_PROP", "分类"),
+                "template_description_property": os.getenv("NOTION_TEMPLATE_DESC_PROP", "描述"),
+                "template_status_property": os.getenv("NOTION_TEMPLATE_STATUS_PROP", "状态"),
+                "knowledge_base_path": os.getenv("KNOWLEDGE_BASE_PATH", "knowledge_base")
             },
             "openrouter": {
                 "api_key": os.getenv("OPENROUTER_API_KEY", ""),
@@ -76,7 +88,9 @@ class CloudScheduler:
                 "auto_generate_title": os.getenv("AUTO_TITLE", "true").lower() == "true",
                 "title_max_length": int(os.getenv("TITLE_MAX_LENGTH", "20")),
                 "title_min_length": int(os.getenv("TITLE_MIN_LENGTH", "10")),
-                "model_mapping": self.load_model_mapping()
+                "model_mapping": self.load_model_mapping(),
+                "auto_sync_templates": os.getenv("AUTO_SYNC_TEMPLATES", "true").lower() == "true",
+                "sync_interval_hours": int(os.getenv("SYNC_INTERVAL_HOURS", "24"))
             }
         }
         
@@ -141,6 +155,9 @@ class CloudScheduler:
         """检查并处理消息"""
         try:
             self.last_check = datetime.now()
+            
+            # 🔥 新增：检查模板库定期同步
+            self.check_template_sync_schedule()
             
             # 获取等待处理的消息
             pending_messages = self.notion_handler.get_pending_messages()
@@ -271,6 +288,100 @@ class CloudScheduler:
                 return template["prompt"]
         return "你是一个智能助手，请认真回答用户的问题。请用中文回复。"
     
+    def auto_sync_templates_on_startup(self):
+        """启动时自动同步模板库"""
+        try:
+            if self.config["settings"]["auto_sync_templates"]:
+                logger.info("🔄 启动时自动同步模板库...")
+                
+                # 检查是否配置了模板库数据库ID
+                if not self.config["notion"]["template_database_id"]:
+                    logger.warning("⚠️ 未配置NOTION_TEMPLATE_DATABASE_ID，跳过模板库同步")
+                    return
+                
+                # 尝试从Notion同步模板
+                success, message = self.template_manager.sync_from_notion()
+                if success:
+                    logger.info(f"✅ 启动时模板库同步成功: {message}")
+                    self.last_template_sync = datetime.now()
+                else:
+                    logger.warning(f"⚠️ 启动时模板库同步失败: {message}")
+                    # 如果同步失败，检查是否需要创建默认模板
+                    self.template_manager.auto_sync_from_notion_if_empty()
+            else:
+                logger.info("🔄 自动同步已禁用，跳过模板库同步")
+                # 仍然检查是否需要创建默认模板
+                self.template_manager.auto_sync_from_notion_if_empty()
+                
+        except Exception as e:
+            logger.error(f"❌ 启动时模板库同步异常: {e}")
+            # 确保至少有默认模板可用
+            self.template_manager.auto_sync_from_notion_if_empty()
+    
+    def check_template_sync_schedule(self):
+        """检查是否需要定期同步模板库"""
+        try:
+            if not self.config["settings"]["auto_sync_templates"]:
+                return
+            
+            if not self.config["notion"]["template_database_id"]:
+                return
+            
+            # 检查是否需要定期同步
+            sync_interval = self.config["settings"]["sync_interval_hours"]
+            if self.last_template_sync:
+                hours_since_sync = (datetime.now() - self.last_template_sync).total_seconds() / 3600
+                if hours_since_sync >= sync_interval:
+                    logger.info(f"🔄 定期同步模板库（距离上次同步 {hours_since_sync:.1f} 小时）...")
+                    success, message = self.template_manager.sync_from_notion()
+                    if success:
+                        logger.info(f"✅ 定期模板库同步成功: {message}")
+                        self.last_template_sync = datetime.now()
+                    else:
+                        logger.warning(f"⚠️ 定期模板库同步失败: {message}")
+                        
+        except Exception as e:
+            logger.error(f"❌ 定期模板库同步检查异常: {e}")
+    
+    def manual_sync_templates_from_notion(self):
+        """手动从Notion同步模板库"""
+        try:
+            if not self.config["notion"]["template_database_id"]:
+                return False, "未配置模板库数据库ID"
+            
+            success, message = self.template_manager.sync_from_notion()
+            if success:
+                self.last_template_sync = datetime.now()
+                logger.info(f"✅ 手动同步模板库成功: {message}")
+            else:
+                logger.warning(f"⚠️ 手动同步模板库失败: {message}")
+            
+            return success, message
+            
+        except Exception as e:
+            error_msg = f"手动同步异常: {e}"
+            logger.error(f"❌ {error_msg}")
+            return False, error_msg
+    
+    def manual_sync_templates_to_notion(self):
+        """手动同步模板库到Notion"""
+        try:
+            if not self.config["notion"]["template_database_id"]:
+                return False, "未配置模板库数据库ID"
+            
+            success, message = self.template_manager.sync_to_notion()
+            if success:
+                logger.info(f"✅ 手动同步模板到Notion成功: {message}")
+            else:
+                logger.warning(f"⚠️ 手动同步模板到Notion失败: {message}")
+            
+            return success, message
+            
+        except Exception as e:
+            error_msg = f"同步到Notion异常: {e}"
+            logger.error(f"❌ {error_msg}")
+            return False, error_msg
+    
     def stop(self):
         """停止调度器"""
         self.is_running = False
@@ -278,10 +389,16 @@ class CloudScheduler:
     
     def get_status(self):
         """获取运行状态"""
+        template_count = len(self.template_manager.get_all_templates()) if self.template_manager else 0
+        
         return {
             "is_running": self.is_running,
             "message_count": self.message_count,
             "last_check": self.last_check.isoformat() if self.last_check else None,
+            "last_template_sync": self.last_template_sync.isoformat() if self.last_template_sync else None,
+            "template_count": template_count,
+            "template_database_configured": bool(self.config["notion"]["template_database_id"]),
+            "auto_sync_enabled": self.config["settings"]["auto_sync_templates"],
             "config_loaded": bool(self.config)
         }
 
@@ -341,6 +458,72 @@ def process_once():
         except Exception as e:
             return jsonify({"error": str(e)}), 500
     return jsonify({"error": "调度器未运行"}), 400
+
+# 🔥 新增：模板库管理API接口
+
+@app.route('/templates/sync-from-notion', methods=['POST'])
+def sync_templates_from_notion():
+    """从Notion同步模板库"""
+    if not scheduler:
+        return jsonify({"error": "调度器未初始化"}), 400
+    
+    try:
+        success, message = scheduler.manual_sync_templates_from_notion()
+        if success:
+            return jsonify({"message": message, "success": True})
+        else:
+            return jsonify({"error": message, "success": False}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/templates/sync-to-notion', methods=['POST'])
+def sync_templates_to_notion():
+    """同步模板库到Notion"""
+    if not scheduler:
+        return jsonify({"error": "调度器未初始化"}), 400
+    
+    try:
+        success, message = scheduler.manual_sync_templates_to_notion()
+        if success:
+            return jsonify({"message": message, "success": True})
+        else:
+            return jsonify({"error": message, "success": False}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/templates', methods=['GET'])
+def get_templates():
+    """获取所有模板"""
+    if not scheduler:
+        return jsonify({"error": "调度器未初始化"}), 400
+    
+    try:
+        templates = scheduler.template_manager.get_all_templates()
+        categories = scheduler.template_manager.get_categories()
+        
+        return jsonify({
+            "templates": templates,
+            "categories": categories,
+            "count": len(templates),
+            "last_sync": scheduler.last_template_sync.isoformat() if scheduler.last_template_sync else None
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/templates/<template_name>', methods=['GET'])
+def get_template(template_name):
+    """获取指定模板"""
+    if not scheduler:
+        return jsonify({"error": "调度器未初始化"}), 400
+    
+    try:
+        template = scheduler.template_manager.get_template(template_name)
+        if template:
+            return jsonify({"template": template, "name": template_name})
+        else:
+            return jsonify({"error": "模板不存在"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
     # 获取端口（Zeabur会自动设置PORT环境变量）
