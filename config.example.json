@@ -11,7 +11,13 @@
     "knowledge_base_property_name": "背景",
     "model_property_name": "类型",
     "title_property_name": "标题",
-    "knowledge_base_path": "knowledge_base"
+    "knowledge_base_path": "knowledge_base",
+    "template_database_id": "your_template_database_id",
+    "template_name_property": "模板名称",
+    "template_category_property": "分类",
+    "template_prompt_property": "提示词",
+    "template_description_property": "描述",
+    "template_status_property": "状态"
   },
   "openrouter": {
     "api_key": "请填入你的OpenRouter API密钥"

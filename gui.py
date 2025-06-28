@@ -4,6 +4,7 @@ import json
 import threading
 from datetime import datetime
 from template_manager import TemplateManager
+from notion_handler import NotionHandler
 
 class NotionLLMGUI:
     """图形用户界面 - 现代化美化版本"""
@@ -20,8 +21,16 @@ class NotionLLMGUI:
         # 配置数据
         self.config = self.load_config()
         
-        # 模板管理器
-        self.template_manager = TemplateManager()
+        # 初始化Notion处理器
+        self.notion_handler = None
+        if self.config:
+            try:
+                self.notion_handler = NotionHandler(self.config)
+            except Exception as e:
+                print(f"初始化Notion处理器失败: {e}")
+        
+        # 模板管理器（传入notion_handler以支持同步）
+        self.template_manager = TemplateManager(notion_handler=self.notion_handler)
         
         # 运行状态
         self.is_running = False
@@ -355,47 +364,24 @@ class NotionLLMGUI:
         interval_entry = ttk.Entry(settings_frame, textvariable=self.interval_var, width=20, style="Modern.TEntry", font=("Helvetica", 10))
         interval_entry.grid(row=0, column=1, padx=(10, 0), pady=(0, 8), sticky="w")
         
-        # 系统提示词设置卡片
-        prompt_frame = ttk.LabelFrame(scrollable_frame, text="💭 AI提示词设置", style="Card.TLabelframe", padding=20)
-        prompt_frame.pack(fill="both", expand=True, padx=20, pady=10)
+        # 工作流程说明卡片（替代复杂的提示词设置）
+        workflow_frame = ttk.LabelFrame(scrollable_frame, text="📋 工作流程说明", style="Card.TLabelframe", padding=20)
+        workflow_frame.pack(fill="x", padx=20, pady=10)
         
-        ttk.Label(prompt_frame, text="系统提示词 (控制AI回复风格和行为):", style="CardText.TLabel").pack(anchor="w", pady=(0, 10))
+        workflow_text = """🎯 使用步骤：
+1. 配置好上方的API密钥和数据库ID
+2. 在"模板库"页面管理你的AI助手模板
+3. 在Notion数据库中输入内容并选择对应模板
+4. 系统将自动处理消息并智能回复
+
+💡 关键点：
+• AI提示词在"模板库"页面统一管理
+• 模板会自动同步到Notion作为选择选项
+• 用户在Notion中选择模板，系统自动应用对应提示词
+• 无需在此页面手动设置系统提示词"""
         
-        # 创建提示词编辑区域
-        prompt_container = tk.Frame(prompt_frame, bg="#ffffff")
-        prompt_container.pack(fill="both", expand=True, pady=(0, 15))
-        
-        self.prompt_text = scrolledtext.ScrolledText(
-            prompt_container, 
-            height=6, 
-            wrap=tk.WORD,
-            bg="#ffffff",
-            fg="#111827",
-            insertbackground="#2563eb",
-            selectbackground="#e5e7eb",
-            selectforeground="#111827",
-            font=("SF Pro Text", 11),
-            relief="flat",
-            borderwidth=2,
-            highlightthickness=1,
-            highlightcolor="#2563eb",
-            highlightbackground="#e5e7eb"
-        )
-        self.prompt_text.pack(fill="both", expand=True, padx=1, pady=1)
-        
-        # 加载现有的系统提示词
-        current_prompt = self.config.get("settings", {}).get("system_prompt", "你是一个智能助手，请认真回答用户的问题。请用中文回复。")
-        self.prompt_text.insert(1.0, current_prompt)
-        
-        # 预设提示词按钮
-        preset_frame = ttk.Frame(prompt_frame, style="Card.TFrame")
-        preset_frame.pack(fill="x", pady=(10, 0))
-        
-        ttk.Label(preset_frame, text="快速模板:", style="CardText.TLabel").pack(side="left", padx=(0, 10))
-        ttk.Button(preset_frame, text="🤝 通用助手", command=lambda: self.set_preset_prompt("general"), style="Accent.TButton").pack(side="left", padx=3)
-        ttk.Button(preset_frame, text="📊 专业分析师", command=lambda: self.set_preset_prompt("analyst"), style="Accent.TButton").pack(side="left", padx=3)
-        ttk.Button(preset_frame, text="✍️ 创意写手", command=lambda: self.set_preset_prompt("creative"), style="Accent.TButton").pack(side="left", padx=3)
-        ttk.Button(preset_frame, text="💻 技术顾问", command=lambda: self.set_preset_prompt("tech"), style="Accent.TButton").pack(side="left", padx=3)
+        workflow_label = ttk.Label(workflow_frame, text=workflow_text, style="CardText.TLabel", justify="left")
+        workflow_label.pack(anchor="w")
         
         # 按钮区域
         button_frame = ttk.Frame(scrollable_frame, style="Card.TFrame")
@@ -566,7 +552,7 @@ class NotionLLMGUI:
                     "check_interval": int(self.interval_var.get()),
                     "max_retries": 3,
                     "request_timeout": 30,
-                    "system_prompt": self.prompt_text.get(1.0, tk.END).strip(),
+                    "system_prompt": "你是一个智能助手，请认真回答用户的问题。请用中文回复。",
                     "require_template_selection": True,
                     "auto_generate_title": True,
                     "title_max_length": 20,
@@ -607,10 +593,7 @@ class NotionLLMGUI:
             try:
                 # 测试Notion
                 from notion_handler import NotionHandler
-                notion = NotionHandler(
-                    self.config["notion"]["api_key"],
-                    self.config["notion"]["database_id"]
-                )
+                notion = NotionHandler(self.config)
                 notion_success, notion_msg = notion.test_connection()
                 
                 # 测试OpenRouter
@@ -625,7 +608,8 @@ class NotionLLMGUI:
                 self.root.after(0, lambda: self.show_test_results(notion_success, notion_msg, llm_success, llm_msg))
                 
             except Exception as e:
-                self.root.after(0, lambda: messagebox.showerror("错误", f"测试连接时出错: {e}"))
+                error_msg = str(e)
+                self.root.after(0, lambda msg=error_msg: messagebox.showerror("错误", f"测试连接时出错: {msg}"))
         
         threading.Thread(target=test_thread, daemon=True).start()
     
@@ -678,7 +662,7 @@ class NotionLLMGUI:
                 "check_interval": int(self.interval_var.get()),
                 "max_retries": 3,
                 "request_timeout": 30,
-                "system_prompt": self.prompt_text.get(1.0, tk.END).strip(),
+                "system_prompt": "你是一个智能助手，请认真回答用户的问题。请用中文回复。",
                 "require_template_selection": True,
                 "auto_generate_title": True,
                 "title_max_length": 20,
@@ -699,19 +683,7 @@ class NotionLLMGUI:
         
         return True
     
-    def set_preset_prompt(self, preset_type):
-        """设置预设提示词"""
-        presets = {
-            "general": "你是一个智能助手，请认真回答用户的问题。请用中文回复。",
-            "analyst": "你是一个专业的数据分析师和商业顾问。请用逻辑清晰、数据驱动的方式分析问题，提供深入的见解和实用的建议。回复要结构化，包含关键要点和可行的建议。",
-            "creative": "你是一个富有创意的写作助手。请用生动、有趣的语言回答问题，善于运用比喻、故事和创新的角度来解释概念。让回复既有用又引人入胜。",
-            "tech": "你是一个资深的技术顾问。请用准确、专业的技术语言回答问题，提供详细的技术解决方案、最佳实践和代码示例（如适用）。注重实用性和可操作性。"
-        }
-        
-        if preset_type in presets:
-            self.prompt_text.delete(1.0, tk.END)
-            self.prompt_text.insert(1.0, presets[preset_type])
-            self.add_log(f"已应用预设提示词: {preset_type}")
+
     
     def start_monitoring(self):
         """开始监听"""
@@ -785,10 +757,7 @@ class NotionLLMGUI:
         def sync_thread():
             try:
                 from notion_handler import NotionHandler
-                notion = NotionHandler(
-                    self.config["notion"]["api_key"],
-                    self.config["notion"]["database_id"]
-                )
+                notion = NotionHandler(self.config)
                 
                 template_names = list(self.template_manager.get_all_templates().keys())
                 if template_names:
@@ -872,9 +841,14 @@ class NotionLLMGUI:
         
         # 第二行：应用操作
         row2 = ttk.Frame(button_card, style="Card.TFrame")
-        row2.pack(fill="x")
+        row2.pack(fill="x", pady=(0, 8))
         ttk.Button(row2, text="✅ 应用模板", command=self.apply_template, style="Success.TButton").pack(side="left", padx=(0, 6))
-        ttk.Button(row2, text="💾 保存当前", command=self.save_current_prompt, style="Warning.TButton").pack(side="left")
+        
+        # 第三行：Notion同步操作
+        row3 = ttk.Frame(button_card, style="Card.TFrame")
+        row3.pack(fill="x")
+        ttk.Button(row3, text="📥 从Notion同步", command=self.sync_from_notion, style="Warning.TButton").pack(side="left", padx=(0, 6))
+        ttk.Button(row3, text="📤 同步到Notion", command=self.sync_to_notion, style="Warning.TButton").pack(side="left")
         
         # 右侧：模板详情
         right_frame = ttk.Frame(main_container, style="Card.TFrame")
@@ -924,15 +898,13 @@ class NotionLLMGUI:
         )
         self.detail_text.pack(fill="both", expand=True, padx=1, pady=1)
         
-        # 管理操作卡片
-        action_card = ttk.LabelFrame(right_frame, text="📦 模板库管理", style="Card.TLabelframe", padding=20)
-        action_card.pack(fill="x")
+        # 简化的使用说明卡片
+        help_card = ttk.LabelFrame(right_frame, text="💡 使用说明", style="Card.TLabelframe", padding=20)
+        help_card.pack(fill="x")
         
-        # 导入导出按钮
-        io_frame = ttk.Frame(action_card, style="Card.TFrame")
-        io_frame.pack(fill="x")
-        ttk.Button(io_frame, text="📤 导出", command=self.export_templates, style="Accent.TButton").pack(side="left", padx=(0, 10))
-        ttk.Button(io_frame, text="📥 导入", command=self.import_templates, style="Accent.TButton").pack(side="left")
+        help_text = ttk.Label(help_card, text="选择左侧模板，点击'应用模板'即可将模板内容设置为系统提示词", 
+                             style="CardText.TLabel", wraplength=280)
+        help_text.pack(anchor="w")
         
         # 初始化模板列表
         self.refresh_templates()
@@ -1002,7 +974,7 @@ class NotionLLMGUI:
         self.detail_text.config(state="disabled")
     
     def apply_template(self):
-        """应用选中的模板到系统提示词"""
+        """将选中的模板同步到Notion数据库"""
         selection = self.template_tree.selection()
         if not selection:
             messagebox.showwarning("提示", "请先选择一个模板")
@@ -1013,12 +985,10 @@ class NotionLLMGUI:
         
         template = self.template_manager.get_template(template_name)
         if template:
-            # 将模板内容设置到配置页面的提示词编辑器
-            self.prompt_text.delete(1.0, tk.END)
-            self.prompt_text.insert(1.0, template["prompt"])
-            
-            self.add_log(f"已应用模板: {template_name}")
-            messagebox.showinfo("成功", f"已应用模板 '{template_name}'")
+            # 同步模板到Notion数据库
+            self.sync_templates()
+            self.add_log(f"模板已准备就绪: {template_name}")
+            messagebox.showinfo("成功", f"模板 '{template_name}' 已同步到Notion！\n\n现在可以在Notion数据库中选择这个模板了。")
         else:
             messagebox.showerror("错误", "模板不存在")
     
@@ -1062,123 +1032,66 @@ class NotionLLMGUI:
             else:
                 messagebox.showerror("错误", message)
     
-    def save_current_prompt(self):
-        """保存当前提示词为模板"""
-        current_prompt = self.prompt_text.get(1.0, tk.END).strip()
-        if not current_prompt:
-            messagebox.showwarning("提示", "当前提示词为空")
-            return
-        
-        # 创建一个简单的模板对象
-        template = {
-            "prompt": current_prompt,
-            "category": "基础",
-            "description": "从当前提示词保存"
-        }
-        
-        self.open_template_editor(template=template)
+
     
-    def export_templates(self):
-        """导出模板库"""
-        filename = filedialog.asksaveasfilename(
-            title="导出模板库",
-            defaultextension=".json",
-            filetypes=[("JSON files", "*.json"), ("All files", "*.*")]
-        )
-        
-        if filename:
-            success, message = self.template_manager.export_templates(filename)
-            if success:
-                self.add_log(f"模板库已导出到: {filename}")
-                messagebox.showinfo("成功", message)
-            else:
-                messagebox.showerror("错误", message)
-    
-    def import_templates(self):
-        """导入模板库"""
-        filename = filedialog.askopenfilename(
-            title="导入模板库",
-            filetypes=[("JSON files", "*.json"), ("All files", "*.*")]
-        )
-        
-        if filename:
-            # 询问是否合并
-            merge = messagebox.askyesno("导入方式", "是否与现有模板合并？\n选择'是'合并，选择'否'替换全部模板")
-            
-            success, message = self.template_manager.import_templates(filename, merge)
-            if success:
-                self.refresh_templates()
-                self.add_log(f"已导入模板库: {filename}")
-                messagebox.showinfo("成功", message)
-            else:
-                messagebox.showerror("错误", message)
+
     
     def open_template_editor(self, template_name=None, template=None):
-        """打开模板编辑器窗口"""
+        """打开简化的模板编辑器窗口"""
         # 创建新窗口
         editor_window = tk.Toplevel(self.root)
-        editor_window.title("模板编辑器" if template_name else "新建模板")
-        editor_window.geometry("600x500")
+        editor_window.title("编辑模板" if template_name else "新建模板")
+        editor_window.geometry("500x400")
         editor_window.configure(bg="#ffffff")
         editor_window.transient(self.root)
         editor_window.grab_set()
         
-        # 模板信息框架
-        info_frame = ttk.LabelFrame(editor_window, text="模板信息", padding=10, style="Card.TLabelframe")
-        info_frame.pack(fill="x", padx=10, pady=10)
+        # 简化的模板信息框架
+        info_frame = ttk.LabelFrame(editor_window, text="📝 模板名称", padding=15, style="Card.TLabelframe")
+        info_frame.pack(fill="x", padx=15, pady=15)
         
-        # 模板名称
-        ttk.Label(info_frame, text="模板名称:").grid(row=0, column=0, sticky="w", pady=5)
+        # 模板名称（唯一必填项）
         name_var = tk.StringVar(value=template_name or "")
-        name_entry = ttk.Entry(info_frame, textvariable=name_var, width=40, style="Modern.TEntry")
-        name_entry.grid(row=0, column=1, sticky="ew", padx=(10, 0), pady=5)
-        
-        # 分类
-        ttk.Label(info_frame, text="分类:").grid(row=1, column=0, sticky="w", pady=5)
-        category_var = tk.StringVar(value=template.get("category", "基础") if template else "基础")
-        category_combo = ttk.Combobox(info_frame, textvariable=category_var, width=37, style="Modern.TCombobox")
-        category_combo["values"] = self.template_manager.get_categories()
-        category_combo.grid(row=1, column=1, sticky="ew", padx=(10, 0), pady=5)
-        
-        # 描述
-        ttk.Label(info_frame, text="描述:").grid(row=2, column=0, sticky="w", pady=5)
-        desc_var = tk.StringVar(value=template.get("description", "") if template else "")
-        desc_entry = ttk.Entry(info_frame, textvariable=desc_var, width=40, style="Modern.TEntry")
-        desc_entry.grid(row=2, column=1, sticky="ew", padx=(10, 0), pady=5)
-        
-        info_frame.columnconfigure(1, weight=1)
+        name_entry = ttk.Entry(info_frame, textvariable=name_var, font=("Microsoft YaHei", 11), style="Modern.TEntry")
+        name_entry.pack(fill="x")
         
         # 提示词内容框架
-        content_frame = ttk.LabelFrame(editor_window, text="提示词内容", padding=10, style="Card.TLabelframe")
-        content_frame.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+        content_frame = ttk.LabelFrame(editor_window, text="💬 提示词内容", padding=15, style="Card.TLabelframe")
+        content_frame.pack(fill="both", expand=True, padx=15, pady=(0, 15))
         
-        # 创建文本容器
-        text_container = tk.Frame(content_frame, bg="#ffffff")
-        text_container.pack(fill="both", expand=True)
-        
-        prompt_text = scrolledtext.ScrolledText(content_frame, height=15, wrap=tk.WORD)
+        prompt_text = scrolledtext.ScrolledText(content_frame, height=12, wrap=tk.WORD, font=("Microsoft YaHei", 10))
         prompt_text.pack(fill="both", expand=True)
         
         if template:
             prompt_text.insert(1.0, template.get("prompt", ""))
         
+        # 使用提示
+        tip_label = ttk.Label(editor_window, text="💡 提示：给模板起个好记的名称，填写提示词内容即可", 
+                             style="CardText.TLabel", foreground="#6b7280")
+        tip_label.pack(padx=15, pady=(0, 10))
+        
         # 按钮框架
         button_frame = ttk.Frame(editor_window)
-        button_frame.pack(fill="x", padx=10, pady=(0, 10))
+        button_frame.pack(fill="x", padx=15, pady=(0, 15))
         
         def save_template():
             name = name_var.get().strip()
-            category = category_var.get().strip()
-            description = desc_var.get().strip()
             prompt = prompt_text.get(1.0, tk.END).strip()
             
             if not name:
                 messagebox.showerror("错误", "请输入模板名称")
+                name_entry.focus()
                 return
             
             if not prompt:
                 messagebox.showerror("错误", "请输入提示词内容")
+                prompt_text.focus()
                 return
+            
+            # 自动设置分类和描述
+            category = "自定义"
+            import datetime
+            description = f"创建于 {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}"
             
             if template_name and template_name != name:
                 # 名称改变了，需要删除旧模板
@@ -1194,13 +1107,58 @@ class NotionLLMGUI:
             if success:
                 self.refresh_templates()
                 self.add_log(f"模板保存成功: {name}")
-                messagebox.showinfo("成功", message)
+                messagebox.showinfo("成功", f"模板 '{name}' 保存成功！")
                 editor_window.destroy()
             else:
                 messagebox.showerror("错误", message)
         
-        ttk.Button(button_frame, text="保存", command=save_template).pack(side="right", padx=5)
-        ttk.Button(button_frame, text="取消", command=editor_window.destroy).pack(side="right")
+        ttk.Button(button_frame, text="💾 保存模板", command=save_template, style="Success.TButton").pack(side="right", padx=5)
+        ttk.Button(button_frame, text="取消", command=editor_window.destroy, style="Accent.TButton").pack(side="right")
+        
+        # 设置焦点到名称输入框
+        name_entry.focus()
+    
+    def sync_from_notion(self):
+        """从Notion同步模板到本地"""
+        def sync_thread():
+            try:
+                success, message = self.template_manager.sync_from_notion()
+                if success:
+                    # 刷新模板列表显示
+                    self.root.after(0, self.refresh_templates)
+                    self.root.after(0, lambda: messagebox.showinfo("同步成功", message))
+                    self.root.after(0, lambda: self.add_log(f"从Notion同步模板成功"))
+                else:
+                    self.root.after(0, lambda: messagebox.showerror("同步失败", message))
+                    self.root.after(0, lambda: self.add_log(f"从Notion同步模板失败: {message}"))
+            except Exception as e:
+                error_msg = f"从Notion同步失败: {e}"
+                self.root.after(0, lambda: messagebox.showerror("同步错误", error_msg))
+                self.root.after(0, lambda: self.add_log(error_msg))
+        
+        # 显示同步开始的提示
+        self.add_log("开始从Notion同步模板...")
+        threading.Thread(target=sync_thread, daemon=True).start()
+    
+    def sync_to_notion(self):
+        """将本地模板同步到Notion"""
+        def sync_thread():
+            try:
+                success, message = self.template_manager.sync_to_notion()
+                if success:
+                    self.root.after(0, lambda: messagebox.showinfo("同步成功", message))
+                    self.root.after(0, lambda: self.add_log(f"向Notion同步模板成功"))
+                else:
+                    self.root.after(0, lambda: messagebox.showerror("同步失败", message))
+                    self.root.after(0, lambda: self.add_log(f"向Notion同步模板失败: {message}"))
+            except Exception as e:
+                error_msg = f"同步到Notion失败: {e}"
+                self.root.after(0, lambda: messagebox.showerror("同步错误", error_msg))
+                self.root.after(0, lambda: self.add_log(error_msg))
+        
+        # 显示同步开始的提示
+        self.add_log("开始向Notion同步模板...")
+        threading.Thread(target=sync_thread, daemon=True).start()
     
     def on_closing(self):
         """程序关闭时的处理"""

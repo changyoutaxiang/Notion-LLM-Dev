@@ -18,6 +18,14 @@ class NotionHandler:
         self.knowledge_prop = notion_config['knowledge_base_property_name']
         self.model_prop = notion_config['model_property_name']
         self.title_prop = notion_config['title_property_name']
+        
+        # 模板库数据库配置
+        self.template_database_id = notion_config.get('template_database_id')
+        self.template_name_prop = notion_config.get('template_name_property', '模板名称')
+        self.template_category_prop = notion_config.get('template_category_property', '分类')
+        self.template_prompt_prop = notion_config.get('template_prompt_property', '提示词')
+        self.template_description_prop = notion_config.get('template_description_property', '描述')
+        self.template_status_prop = notion_config.get('template_status_property', '状态')
 
         self.headers = {
             "Authorization": f"Bearer {self.api_key}",
@@ -509,4 +517,390 @@ class NotionHandler:
         
         final_context = "\n\n".join(context_parts)
         print(f"✅ 最终背景文件内容长度: {len(final_context)} 字符")
-        return final_context 
+        return final_context
+
+    def get_templates_from_notion(self):
+        """从Notion模板库数据库获取所有模板"""
+        if not self.template_database_id:
+            print("⚠️  未配置模板库数据库ID")
+            return {}
+        
+        try:
+            url = f"https://api.notion.com/v1/databases/{self.template_database_id}/query"
+            
+            # 只获取启用状态的模板
+            payload = {
+                "filter": {
+                    "property": self.template_status_prop,
+                    "select": {
+                        "equals": "启用"
+                    }
+                },
+                "sorts": [
+                    {
+                        "property": self.template_name_prop,
+                        "direction": "ascending"
+                    }
+                ]
+            }
+            
+            response = requests.post(url, headers=self.headers, json=payload, timeout=30)
+            response.raise_for_status()
+            
+            data = response.json()
+            templates = {}
+            categories = set()
+            
+            for page in data.get("results", []):
+                template_data = self._extract_template_data(page)
+                if template_data:
+                    name = template_data['name']
+                    templates[name] = {
+                        'category': template_data['category'],
+                        'prompt': template_data['prompt'],
+                        'description': template_data['description'],
+                        'updated': template_data['updated']
+                    }
+                    categories.add(template_data['category'])
+            
+            print(f"✅ 从Notion同步了 {len(templates)} 个模板")
+            return {
+                'templates': templates,
+                'categories': list(categories)
+            }
+            
+        except Exception as e:
+            print(f"❌ 从Notion获取模板失败: {e}")
+            return {}
+    
+    def _extract_template_data(self, page):
+        """从Notion页面提取模板数据"""
+        try:
+            properties = page.get("properties", {})
+            
+            # 提取模板名称
+            name_prop = properties.get(self.template_name_prop, {})
+            if name_prop.get("type") == "title":
+                name_list = name_prop.get("title", [])
+                name = name_list[0].get("text", {}).get("content", "") if name_list else ""
+            else:
+                name = ""
+            
+            if not name:
+                return None
+            
+            # 提取分类
+            category_prop = properties.get(self.template_category_prop, {})
+            if category_prop.get("type") == "select":
+                category_obj = category_prop.get("select")
+                category = category_obj.get("name", "基础") if category_obj else "基础"
+            else:
+                category = "基础"
+            
+            # 提取描述
+            desc_prop = properties.get(self.template_description_prop, {})
+            if desc_prop.get("type") == "rich_text":
+                desc_list = desc_prop.get("rich_text", [])
+                description = desc_list[0].get("text", {}).get("content", "") if desc_list else ""
+            else:
+                description = ""
+            
+            # 获取更新时间
+            updated = page.get("last_edited_time", datetime.now().isoformat())
+            
+            # 获取提示词内容（从页面内容块中获取）
+            prompt = self._get_page_content(page["id"])
+            
+            return {
+                'name': name,
+                'category': category,
+                'prompt': prompt,
+                'description': description,
+                'updated': updated
+            }
+            
+        except Exception as e:
+            print(f"提取模板数据失败: {e}")
+            return None
+    
+    def _get_page_content(self, page_id):
+        """获取页面的文本内容"""
+        try:
+            url = f"https://api.notion.com/v1/blocks/{page_id}/children"
+            response = requests.get(url, headers=self.headers, timeout=30)
+            response.raise_for_status()
+            
+            data = response.json()
+            content_parts = []
+            
+            for block in data.get("results", []):
+                text = self._extract_text_from_block(block)
+                if text:
+                    content_parts.append(text)
+            
+            return "\n\n".join(content_parts)
+            
+        except Exception as e:
+            print(f"获取页面内容失败: {e}")
+            return ""
+    
+    def _extract_text_from_block(self, block):
+        """从Notion块中提取文本"""
+        block_type = block.get("type")
+        
+        if block_type == "paragraph":
+            rich_text = block.get("paragraph", {}).get("rich_text", [])
+        elif block_type == "heading_1":
+            rich_text = block.get("heading_1", {}).get("rich_text", [])
+        elif block_type == "heading_2":
+            rich_text = block.get("heading_2", {}).get("rich_text", [])
+        elif block_type == "heading_3":
+            rich_text = block.get("heading_3", {}).get("rich_text", [])
+        elif block_type == "bulleted_list_item":
+            rich_text = block.get("bulleted_list_item", {}).get("rich_text", [])
+        elif block_type == "numbered_list_item":
+            rich_text = block.get("numbered_list_item", {}).get("rich_text", [])
+        elif block_type == "quote":
+            rich_text = block.get("quote", {}).get("rich_text", [])
+        elif block_type == "code":
+            rich_text = block.get("code", {}).get("rich_text", [])
+        else:
+            return ""
+        
+        text_parts = []
+        for text_obj in rich_text:
+            if text_obj.get("type") == "text":
+                text_parts.append(text_obj.get("text", {}).get("content", ""))
+        
+        return "".join(text_parts)
+    
+    def sync_template_to_notion(self, name, template_data):
+        """将模板同步到Notion（创建或更新）"""
+        if not self.template_database_id:
+            print("⚠️  未配置模板库数据库ID")
+            return False
+        
+        try:
+            # 检查模板是否已存在
+            existing_page_id = self._find_template_page(name)
+            
+            if existing_page_id:
+                # 更新现有模板
+                return self._update_template_page(existing_page_id, name, template_data)
+            else:
+                # 创建新模板
+                return self._create_template_page(name, template_data)
+                
+        except Exception as e:
+            print(f"同步模板到Notion失败: {e}")
+            return False
+    
+    def _find_template_page(self, name):
+        """查找指定名称的模板页面"""
+        try:
+            url = f"https://api.notion.com/v1/databases/{self.template_database_id}/query"
+            
+            payload = {
+                "filter": {
+                    "property": self.template_name_prop,
+                    "title": {
+                        "equals": name
+                    }
+                }
+            }
+            
+            response = requests.post(url, headers=self.headers, json=payload, timeout=30)
+            response.raise_for_status()
+            
+            data = response.json()
+            results = data.get("results", [])
+            
+            if results:
+                return results[0]["id"]
+            
+            return None
+            
+        except Exception as e:
+            print(f"查找模板页面失败: {e}")
+            return None
+    
+    def _create_template_page(self, name, template_data):
+        """在Notion中创建新的模板页面"""
+        try:
+            url = "https://api.notion.com/v1/pages"
+            
+            # 分割长文本内容
+            prompt_content = template_data.get("prompt", "")
+            content_blocks = []
+            
+            if prompt_content:
+                paragraphs = self._split_content_into_paragraphs(prompt_content)
+                for paragraph in paragraphs:
+                    if paragraph.strip():
+                        content_blocks.append({
+                            "object": "block",
+                            "type": "paragraph",
+                            "paragraph": {
+                                "rich_text": [
+                                    {
+                                        "type": "text",
+                                        "text": {
+                                            "content": paragraph
+                                        }
+                                    }
+                                ]
+                            }
+                        })
+            
+            payload = {
+                "parent": {
+                    "database_id": self.template_database_id
+                },
+                "properties": {
+                    self.template_name_prop: {
+                        "title": [
+                            {
+                                "text": {
+                                    "content": name
+                                }
+                            }
+                        ]
+                    },
+                    self.template_category_prop: {
+                        "select": {
+                            "name": template_data.get("category", "基础")
+                        }
+                    },
+                    self.template_description_prop: {
+                        "rich_text": [
+                            {
+                                "text": {
+                                    "content": template_data.get("description", "")
+                                }
+                            }
+                        ]
+                    },
+                    self.template_status_prop: {
+                        "select": {
+                            "name": "启用"
+                        }
+                    }
+                },
+                "children": content_blocks
+            }
+            
+            response = requests.post(url, headers=self.headers, json=payload, timeout=30)
+            response.raise_for_status()
+            
+            print(f"✅ 创建模板成功: {name}")
+            return True
+            
+        except Exception as e:
+            print(f"创建模板页面失败: {e}")
+            return False
+    
+    def _update_template_page(self, page_id, name, template_data):
+        """更新现有的模板页面"""
+        try:
+            # 更新页面属性
+            url = f"https://api.notion.com/v1/pages/{page_id}"
+            
+            payload = {
+                "properties": {
+                    self.template_category_prop: {
+                        "select": {
+                            "name": template_data.get("category", "基础")
+                        }
+                    },
+                    self.template_description_prop: {
+                        "rich_text": [
+                            {
+                                "text": {
+                                    "content": template_data.get("description", "")
+                                }
+                            }
+                        ]
+                    },
+                    self.template_status_prop: {
+                        "select": {
+                            "name": "启用"
+                        }
+                    }
+                }
+            }
+            
+            response = requests.patch(url, headers=self.headers, json=payload, timeout=30)
+            response.raise_for_status()
+            
+            # 更新页面内容（清空并重新写入）
+            self._update_page_content(page_id, template_data.get("prompt", ""))
+            
+            print(f"✅ 更新模板成功: {name}")
+            return True
+            
+        except Exception as e:
+            print(f"更新模板页面失败: {e}")
+            return False
+    
+    def _update_page_content(self, page_id, content):
+        """更新页面内容"""
+        try:
+            # 先获取现有的内容块
+            blocks_url = f"https://api.notion.com/v1/blocks/{page_id}/children"
+            response = requests.get(blocks_url, headers=self.headers, timeout=30)
+            response.raise_for_status()
+            
+            data = response.json()
+            existing_blocks = data.get("results", [])
+            
+            # 删除现有的内容块
+            for block in existing_blocks:
+                block_id = block["id"]
+                delete_url = f"https://api.notion.com/v1/blocks/{block_id}"
+                requests.delete(delete_url, headers=self.headers, timeout=30)
+            
+            # 添加新的内容
+            paragraphs = self._split_content_into_paragraphs(content)
+            children = []
+            
+            for paragraph in paragraphs:
+                if paragraph.strip():
+                    children.append({
+                        "object": "block",
+                        "type": "paragraph",
+                        "paragraph": {
+                            "rich_text": [
+                                {
+                                    "type": "text",
+                                    "text": {
+                                        "content": paragraph
+                                    }
+                                }
+                            ]
+                        }
+                    })
+            
+            if children:
+                append_url = f"https://api.notion.com/v1/blocks/{page_id}/children"
+                payload = {"children": children}
+                response = requests.patch(append_url, headers=self.headers, json=payload, timeout=30)
+                response.raise_for_status()
+            
+            return True
+            
+        except Exception as e:
+            print(f"更新页面内容失败: {e}")
+            return False
+
+    def test_template_database_connection(self):
+        """测试模板库数据库连接"""
+        if not self.template_database_id:
+            return False, "未配置模板库数据库ID"
+        
+        try:
+            url = f"https://api.notion.com/v1/databases/{self.template_database_id}"
+            response = requests.get(url, headers=self.headers, timeout=10)
+            response.raise_for_status()
+            return True, "模板库数据库连接成功！"
+        except Exception as e:
+            return False, f"模板库数据库连接失败: {e}" 

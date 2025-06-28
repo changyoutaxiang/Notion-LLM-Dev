@@ -12,6 +12,10 @@ import logging
 from datetime import datetime
 from flask import Flask, jsonify, request
 import threading
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from notion_handler import NotionHandler
 from llm_handler import LLMHandler
 from template_manager import TemplateManager

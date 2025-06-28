@@ -5,8 +5,9 @@ from datetime import datetime
 class TemplateManager:
     """提示词模板管理器"""
     
-    def __init__(self, template_file="templates.json"):
+    def __init__(self, template_file="templates.json", notion_handler=None):
         self.template_file = template_file
+        self.notion_handler = notion_handler
         self.templates = {}
         self.categories = []
         self.load_templates()
@@ -129,57 +130,78 @@ class TemplateManager:
             return self.save_templates()
         return True
     
-    def export_templates(self, filename):
-        """导出模板到文件"""
+    def sync_from_notion(self):
+        """从Notion同步模板到本地"""
+        if not self.notion_handler:
+            return False, "未配置Notion处理器"
+        
         try:
-            data = {
-                "templates": self.templates,
-                "categories": self.categories,
-                "exported": datetime.now().isoformat()
-            }
+            print("🔄 开始从Notion同步模板...")
             
-            with open(filename, 'w', encoding='utf-8') as f:
-                json.dump(data, f, ensure_ascii=False, indent=2)
-            return True, f"模板已导出到 {filename}"
-        except Exception as e:
-            return False, f"导出失败: {e}"
-    
-    def import_templates(self, filename, merge=True):
-        """从文件导入模板"""
-        try:
-            with open(filename, 'r', encoding='utf-8') as f:
-                data = json.load(f)
+            # 从Notion获取模板数据
+            notion_data = self.notion_handler.get_templates_from_notion()
             
-            imported_templates = data.get("templates", {})
-            imported_categories = data.get("categories", [])
+            if not notion_data:
+                return False, "从Notion获取模板数据失败"
             
-            if not merge:
-                # 不合并，直接替换
-                self.templates = imported_templates
-                self.categories = imported_categories
-            else:
-                # 合并模式
-                conflict_count = 0
-                for name, template in imported_templates.items():
-                    if name in self.templates:
-                        conflict_count += 1
-                        # 添加后缀避免冲突
-                        new_name = f"{name}_导入"
-                        self.templates[new_name] = template
-                    else:
-                        self.templates[name] = template
-                
-                # 合并分类
-                for category in imported_categories:
-                    if category not in self.categories:
-                        self.categories.append(category)
+            # 更新本地模板数据
+            self.templates = notion_data.get('templates', {})
+            notion_categories = notion_data.get('categories', [])
             
+            # 合并分类，保持现有分类并添加新的
+            for category in notion_categories:
+                if category not in self.categories:
+                    self.categories.append(category)
+            
+            # 保存到本地文件
             success = self.save_templates()
-            message = f"导入成功！导入了 {len(imported_templates)} 个模板"
-            if merge and conflict_count > 0:
-                message += f"，{conflict_count} 个重名模板已添加后缀"
             
-            return success, message if success else "保存失败"
-            
+            if success:
+                print(f"✅ 成功同步 {len(self.templates)} 个模板")
+                return True, f"同步成功！获取了 {len(self.templates)} 个模板"
+            else:
+                return False, "保存模板到本地文件失败"
+                
         except Exception as e:
-            return False, f"导入失败: {e}" 
+            print(f"❌ 同步模板失败: {e}")
+            return False, f"同步失败: {e}"
+    
+    def sync_to_notion(self):
+        """将本地模板同步到Notion"""
+        if not self.notion_handler:
+            return False, "未配置Notion处理器"
+        
+        try:
+            print("🔄 开始向Notion同步模板...")
+            
+            success_count = 0
+            failed_templates = []
+            
+            for name, template_data in self.templates.items():
+                success = self.notion_handler.sync_template_to_notion(name, template_data)
+                if success:
+                    success_count += 1
+                else:
+                    failed_templates.append(name)
+            
+            if failed_templates:
+                return False, f"同步完成：成功 {success_count} 个，失败 {len(failed_templates)} 个\n失败的模板：{', '.join(failed_templates)}"
+            else:
+                return True, f"同步成功！上传了 {success_count} 个模板到Notion"
+                
+        except Exception as e:
+            print(f"❌ 同步模板到Notion失败: {e}")
+            return False, f"同步失败: {e}"
+    
+    def auto_sync_from_notion_if_empty(self):
+        """如果本地模板为空，自动从Notion同步"""
+        if len(self.templates) == 0 and self.notion_handler:
+            print("📥 检测到本地模板库为空，尝试从Notion自动同步...")
+            success, message = self.sync_from_notion()
+            if success:
+                print(f"✅ 自动同步成功: {message}")
+            else:
+                print(f"❌ 自动同步失败: {message}")
+            return success
+        return True
+ 
