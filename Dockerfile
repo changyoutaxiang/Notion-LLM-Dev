@@ -40,18 +40,8 @@ COPY knowledge_base/ ./knowledge_base/
 RUN pip install --no-cache-dir -r requirements_cloud.txt
 RUN pip install --no-cache-dir -r requirements_rag.txt
 
-# 🤖 预下载RAG模型（减少首次启动时间）
-RUN python -c "
-import os
-os.makedirs('/app/model_cache', exist_ok=True)
-try:
-    from sentence_transformers import SentenceTransformer
-    print('🤖 正在下载RAG模型...')
-    model = SentenceTransformer('shibing624/text2vec-base-chinese', cache_folder='/app/model_cache')
-    print('✅ RAG模型下载完成')
-except Exception as e:
-    print(f'⚠️ 模型下载失败，将在运行时下载: {e}')
-"
+# 🤖 创建模型缓存目录（模型将在首次启动时自动下载）
+RUN mkdir -p /app/model_cache
 
 # 创建必要的目录
 RUN mkdir -p vector_cache logs cache
