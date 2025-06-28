@@ -61,6 +61,53 @@
     "enable_semantic_search": true,
     "enable_usage_weighting": true,
     "snippet_max_length": 800,
-    "enable_new_system": false
+    "enable_new_system": true,
+    
+    "rag_system": {
+      "enabled": true,
+      "mode": "hybrid",
+      
+      "embedding": {
+        "model_name": "BAAI/bge-large-zh-v1.5",
+        "model_cache_dir": "./model_cache",
+        "batch_size": 32,
+        "max_seq_length": 512,
+        "device": "auto",
+        "enable_gpu": true
+      },
+      
+      "search": {
+        "similarity_threshold": 0.3,
+        "max_results": 10,
+        "chunk_size": 300,
+        "chunk_overlap": 50,
+        "enable_caching": true,
+        "cache_ttl_hours": 24,
+        "enable_batch_processing": true
+      },
+      
+      "ranking": {
+        "similarity_weight": 0.4,
+        "priority_weight": 0.2,
+        "frequency_weight": 0.2,
+        "recency_weight": 0.1,
+        "authority_weight": 0.1
+      },
+      
+      "performance": {
+        "index_type": "auto",
+        "nlist": 100,
+        "efConstruction": 200,
+        "M": 16,
+        "enable_performance_monitoring": true
+      },
+      
+      "context": {
+        "enable_context": true,
+        "context_window_size": 5,
+        "context_decay_factor": 0.8,
+        "multi_turn_support": true
+      }
+    }
   }
 } 

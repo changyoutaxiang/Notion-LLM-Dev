@@ -49,6 +49,13 @@ logs/
 # 配置文件 (可能包含敏感信息)
 config.json
 
+# RAG系统缓存文件 (避免提交大模型文件)
+model_cache/
+vector_cache/
+cache/
+*.pkl
+*.faiss
+
 # 临时文件
 *.tmp
 *.temp

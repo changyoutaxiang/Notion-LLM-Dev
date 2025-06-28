@@ -12,9 +12,20 @@ import logging
 from datetime import datetime
 from flask import Flask, jsonify, request
 import threading
+import requests
 from notion_handler import NotionHandler
 from llm_handler import LLMHandler
 from template_manager import TemplateManager
+
+# 🧠 尝试导入RAG智能检索模块 (v3.0)
+RAG_AVAILABLE = False
+try:
+    from notion_knowledge_db import NotionKnowledgeDB
+    RAG_AVAILABLE = True
+    print("✅ RAG智能检索模块加载成功")
+except ImportError as e:
+    print(f"⚠️ RAG模块未找到，使用传统检索: {e}")
+    print("💡 如需使用RAG智能检索，请确保包含 notion_knowledge_db.py 和相关依赖")
 
 # 配置日志
 logging.basicConfig(
@@ -43,6 +54,16 @@ class CloudScheduler:
         
         # 🔥 新增：正确初始化TemplateManager并连接NotionHandler
         self.template_manager = TemplateManager(notion_handler=self.notion_handler)
+        
+        # 🧠 初始化RAG智能检索系统 (v3.0)
+        self.knowledge_db = None
+        if RAG_AVAILABLE:
+            try:
+                self.knowledge_db = NotionKnowledgeDB(self.config)
+                logger.info("🧠 RAG智能检索系统初始化成功")
+            except Exception as e:
+                logger.warning(f"⚠️ RAG初始化失败，使用传统检索: {e}")
+                self.knowledge_db = None
         
         # 运行状态
         self.is_running = False
@@ -192,9 +213,31 @@ class CloudScheduler:
             
             logger.info(f"处理消息: {template_choice} - {content[:50]}...")
             
-            # 获取知识库上下文
+            # 🧠 获取知识库上下文 (支持RAG智能检索)
             logger.info(f"🔍 [云端调试] 开始获取知识库上下文，标签: {tags}")
-            knowledge_context = self.notion_handler.get_context_from_knowledge_base(tags)
+            
+            knowledge_context = ""
+            # 优先使用RAG智能检索
+            if self.knowledge_db and "无" not in tags:
+                try:
+                    logger.info("🧠 尝试使用RAG智能检索...")
+                    # 基于用户问题进行智能检索
+                    rag_results = self.knowledge_db.smart_search_knowledge(content, max_results=3)
+                    if rag_results:
+                        knowledge_context = f"=== 智能检索到的相关知识 ===\n\n"
+                        for i, result in enumerate(rag_results, 1):
+                            knowledge_context += f"【知识片段{i}】{result['title']}\n{result['content'][:500]}...\n\n"
+                        logger.info(f"🧠 RAG智能检索成功，找到 {len(rag_results)} 个相关知识片段")
+                    else:
+                        logger.info("🧠 RAG检索无结果，降级到传统标签检索...")
+                        knowledge_context = self.notion_handler.get_context_from_knowledge_base(tags)
+                except Exception as e:
+                    logger.warning(f"⚠️ RAG检索失败，降级到传统检索: {e}")
+                    knowledge_context = self.notion_handler.get_context_from_knowledge_base(tags)
+            else:
+                # 使用传统标签检索
+                knowledge_context = self.notion_handler.get_context_from_knowledge_base(tags)
+            
             logger.info(f"🔍 [云端调试] 知识库上下文获取完成，长度: {len(knowledge_context)} 字符")
             
             # 获取基础系统提示词

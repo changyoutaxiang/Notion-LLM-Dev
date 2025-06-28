@@ -1,78 +1,91 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 """
-智能知识检索测试脚本
+RAG智能搜索功能测试
+测试语义搜索和混合检索的实际效果
 """
 
 import json
+import time
 from notion_knowledge_db import NotionKnowledgeDB
 
+def load_config():
+    """加载配置"""
+    with open('config.json', 'r', encoding='utf-8') as f:
+        return json.load(f)
+
 def test_smart_search():
-    """测试智能知识检索功能"""
-    print("🧠 智能知识检索测试")
-    print("=" * 40)
+    """测试智能搜索功能"""
+    
+    print("🧠 RAG智能搜索功能测试")
+    print("=" * 50)
     
     # 加载配置
-    try:
-        with open('config.json', 'r', encoding='utf-8') as f:
-            config = json.load(f)
-    except Exception as e:
-        print(f"❌ 配置文件加载失败: {e}")
-        return
+    config = load_config()
     
-    # 创建知识库实例
-    kb = NotionKnowledgeDB(config)
+    # 初始化NotionKnowledgeDB
+    knowledge_db = NotionKnowledgeDB(config)
     
-    # 测试用例
+    # 测试查询
     test_queries = [
-        "AI效率中心的部门职能是什么？",
-        "介绍一下组织架构",
-        "业务流程是怎样的？",
-        "用户转化相关的信息",
-        "AI经理培养相关内容"
+        "AI效率中心是什么",
+        "如何培养AI人才",
+        "组织架构设计",
+        "业务增长策略",
+        "AIBP团队",
+        "智能化转型",
+        "人才培养方案",
+        "转介绍机制"
     ]
     
-    print("🔍 开始测试智能检索...")
+    print(f"📊 开始测试 {len(test_queries)} 个查询...\n")
     
     for i, query in enumerate(test_queries, 1):
-        print(f"\n📝 测试 {i}: {query}")
-        print("-" * 30)
+        print(f"🔍 查询 {i}: '{query}'")
+        print("-" * 40)
         
-        # 测试关键词搜索
+        start_time = time.time()
+        
         try:
-            # 简单关键词提取（实际应该用更智能的方法）
-            keywords = []
-            if "AI效率中心" in query:
-                keywords.append("AI效率中心")
-            if "部门" in query or "组织" in query:
-                keywords.append("部门职能")
-                keywords.append("组织架构")
-            if "业务" in query:
-                keywords.append("业务理解")
-            if "用户" in query:
-                keywords.append("用户转化")
-            if "AI经理" in query:
-                keywords.append("AI经理培养")
-            
-            if keywords:
-                print(f"🔑 提取关键词: {keywords}")
-                results = kb.search_knowledge_by_keywords(keywords)
-                
-                if results:
-                    print(f"✅ 找到 {len(results)} 个相关知识条目:")
-                    for result in results:
-                        print(f"   📄 {result['title']}")
-                        print(f"   🏷️  分类: {result['category']}")
-                        print(f"   🔗 关键词: {', '.join(result['keywords'])}")
-                        print()
-                else:
-                    print("❌ 未找到相关知识")
+            # 测试新的智能搜索接口
+            if hasattr(knowledge_db, 'smart_search_knowledge'):
+                results = knowledge_db.smart_search_knowledge(query, max_results=3)
+                search_type = "智能搜索"
             else:
-                print("⚠️  未提取到关键词")
+                # 回退到关键词搜索
+                results = knowledge_db.search_knowledge_by_keywords([query])
+                search_type = "关键词搜索"
+            
+            search_time = time.time() - start_time
+            
+            print(f"⚡ 搜索方式: {search_type}")
+            print(f"⏱️ 搜索时间: {search_time:.3f}秒")
+            print(f"📋 结果数量: {len(results)}")
+            
+            if results:
+                for j, result in enumerate(results[:2], 1):  # 只显示前2个结果
+                    if isinstance(result, dict):
+                        title = result.get('title', 'N/A')
+                        # 尝试获取片段或内容
+                        snippet = result.get('snippet', result.get('content', ''))[:150]
+                        similarity = result.get('similarity_score', 'N/A')
+                        
+                        print(f"  📌 结果{j}: {title}")
+                        if similarity != 'N/A':
+                            print(f"    📊 相似度: {similarity:.3f}")
+                        print(f"    📝 片段: {snippet}...")
+                    else:
+                        print(f"  📌 结果{j}: {str(result)[:100]}...")
+            else:
+                print("  ❌ 未找到相关结果")
                 
         except Exception as e:
-            print(f"❌ 搜索失败: {e}")
+            print(f"  ❌ 搜索出错: {e}")
+        
+        print()
     
-    print("\n🎉 测试完成！")
+    print("🎉 测试完成！")
 
 def test_category_search():
     """测试分类搜索"""

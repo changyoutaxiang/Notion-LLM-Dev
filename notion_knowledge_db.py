@@ -2,6 +2,7 @@ import requests
 import json
 from datetime import datetime
 from notion_handler import NotionHandler
+from typing import List, Dict
 
 class NotionKnowledgeDB(NotionHandler):
     """扩展NotionHandler以支持知识库操作"""
@@ -24,6 +25,86 @@ class NotionKnowledgeDB(NotionHandler):
         self.knowledge_status_prop = notion_config.get('knowledge_status_property', '状态')
         self.knowledge_relations_prop = notion_config.get('knowledge_relations_property', '关联知识')
         self.knowledge_usage_prop = notion_config.get('knowledge_usage_property', '使用频率')
+        
+        # RAG系统配置
+        self.config = config
+        self._hybrid_engine = None
+        self._initialize_rag_system()
+    
+    def _initialize_rag_system(self):
+        """初始化RAG系统"""
+        try:
+            rag_config = self.config.get('knowledge_search', {}).get('rag_system', {})
+            if rag_config.get('enabled', False):
+                from hybrid_retrieval import create_hybrid_retrieval_engine
+                self._hybrid_engine = create_hybrid_retrieval_engine(self, self.config)
+                print("🚀 RAG智能检索系统已启用")
+                
+                # 异步构建语义索引
+                import threading
+                index_thread = threading.Thread(target=self._build_semantic_index_async)
+                index_thread.daemon = True
+                index_thread.start()
+            else:
+                print("📝 使用传统关键词检索")
+        except Exception as e:
+            print(f"⚠️ RAG系统初始化失败，使用传统检索: {e}")
+            self._hybrid_engine = None
+    
+    def _build_semantic_index_async(self):
+        """异步构建语义索引"""
+        try:
+            if self._hybrid_engine:
+                print("🔄 正在后台构建语义索引...")
+                if self._hybrid_engine.build_semantic_index():
+                    print("✅ 语义索引构建完成")
+                else:
+                    print("❌ 语义索引构建失败")
+        except Exception as e:
+            print(f"❌ 构建语义索引时出错: {e}")
+    
+    def smart_search_knowledge(self, query: str, max_results: int = 5) -> List[Dict]:
+        """智能知识搜索 - 新的主要搜索接口"""
+        if self._hybrid_engine:
+            try:
+                # 使用混合检索引擎
+                search_results = self._hybrid_engine.intelligent_search(query, max_results)
+                
+                # 转换为传统格式以保持兼容性
+                knowledge_items = []
+                for result in search_results:
+                    knowledge_item = {
+                        'id': result.knowledge_id,
+                        'title': result.title,
+                        'content': result.full_content or result.content_snippet,
+                        'similarity_score': result.similarity_score,
+                        'source_type': result.source_type,
+                        'metadata': result.metadata
+                    }
+                    knowledge_items.append(knowledge_item)
+                
+                print(f"🧠 智能搜索完成: '{query}' → {len(knowledge_items)} 个结果")
+                return knowledge_items
+                
+            except Exception as e:
+                print(f"⚠️ 智能搜索失败，回退到关键词搜索: {e}")
+                # 回退到传统搜索
+                return self._fallback_search(query)
+        else:
+            # 使用传统关键词搜索
+            return self._fallback_search(query)
+    
+    def _fallback_search(self, query: str) -> List[Dict]:
+        """回退搜索方法"""
+        # 简单的关键词提取
+        import jieba
+        words = list(jieba.cut(query))
+        keywords = [word.strip() for word in words if len(word.strip()) > 1]
+        
+        if keywords:
+            return self.search_knowledge_by_keywords(keywords)
+        else:
+            return []
     
     def search_knowledge_by_keywords(self, keywords: list):
         """根据关键词搜索知识"""
@@ -31,6 +112,25 @@ class NotionKnowledgeDB(NotionHandler):
             print("❌ 知识库数据库ID未配置")
             return []
         
+        try:
+            # 首先尝试精确关键词匹配
+            exact_results = self._search_by_exact_keywords(keywords)
+            
+            # 如果精确匹配没有结果，使用智能匹配
+            if not exact_results:
+                smart_results = self._search_by_smart_matching(keywords)
+                print(f"✅ 找到 {len(smart_results)} 个相关知识条目（智能匹配）")
+                return smart_results
+            else:
+                print(f"✅ 找到 {len(exact_results)} 个相关知识条目（精确匹配）")
+                return exact_results
+            
+        except Exception as e:
+            print(f"❌ 搜索知识失败: {e}")
+            return []
+    
+    def _search_by_exact_keywords(self, keywords: list):
+        """精确关键词匹配搜索"""
         try:
             url = f"https://api.notion.com/v1/databases/{self.knowledge_db_id}/query"
             
@@ -57,11 +157,11 @@ class NotionKnowledgeDB(NotionHandler):
                 "sorts": [
                     {
                         "property": self.knowledge_priority_prop,
-                        "direction": "ascending"  # 高优先级排在前面
+                        "direction": "ascending"
                     },
                     {
                         "property": self.knowledge_usage_prop,
-                        "direction": "descending"  # 使用频率高的排在前面
+                        "direction": "descending"
                     }
                 ]
             }
@@ -77,11 +177,64 @@ class NotionKnowledgeDB(NotionHandler):
                 if knowledge_data:
                     knowledge_items.append(knowledge_data)
             
-            print(f"✅ 找到 {len(knowledge_items)} 个相关知识条目")
             return knowledge_items
             
         except Exception as e:
-            print(f"❌ 搜索知识失败: {e}")
+            print(f"❌ 精确关键词搜索失败: {e}")
+            return []
+    
+    def _search_by_smart_matching(self, keywords: list):
+        """智能匹配搜索（标题和内容中查找关键词）"""
+        try:
+            # 获取所有启用的知识条目
+            all_items = self.get_all_knowledge_items()
+            
+            # 在内存中进行智能匹配
+            matched_items = []
+            
+            for item in all_items:
+                # 检查标题、关键词列表、内容
+                title = item.get('title', '').lower()
+                keywords_list = [kw.lower() for kw in item.get('keywords', [])]
+                content = item.get('content', '').lower()
+                
+                # 计算匹配分数
+                match_score = 0
+                matched_keywords = []
+                
+                for keyword in keywords:
+                    keyword_lower = keyword.lower()
+                    
+                    # 标题匹配 (权重最高)
+                    if keyword_lower in title:
+                        match_score += 3
+                        matched_keywords.append(keyword)
+                    
+                    # 关键词列表匹配 (权重高)
+                    for existing_kw in keywords_list:
+                        if keyword_lower in existing_kw:
+                            match_score += 2
+                            matched_keywords.append(keyword)
+                            break
+                    
+                    # 内容匹配 (权重中等)
+                    if keyword_lower in content:
+                        match_score += 1
+                        matched_keywords.append(keyword)
+                
+                # 如果有匹配，添加到结果
+                if match_score > 0:
+                    item['match_score'] = match_score
+                    item['matched_keywords'] = list(set(matched_keywords))
+                    matched_items.append(item)
+            
+            # 按匹配分数排序
+            matched_items.sort(key=lambda x: (x['match_score'], x.get('usage_count', 0)), reverse=True)
+            
+            return matched_items
+            
+        except Exception as e:
+            print(f"❌ 智能匹配搜索失败: {e}")
             return []
     
     def get_knowledge_by_category(self, category: str, subcategory: str = None):
@@ -329,6 +482,57 @@ class NotionKnowledgeDB(NotionHandler):
             print(f"❌ 更新知识内容失败: {e}")
             return False
     
+    def get_all_knowledge_items(self) -> List[Dict]:
+        """获取所有知识条目（用于构建语义索引）"""
+        if not self.knowledge_db_id:
+            print("❌ 知识库数据库ID未配置")
+            return []
+            
+        try:
+            url = f"https://api.notion.com/v1/databases/{self.knowledge_db_id}/query"
+            
+            # 只获取启用状态的知识条目
+            payload = {
+                "filter": {
+                    "property": self.knowledge_status_prop,
+                    "select": {"equals": "启用"}
+                },
+                "sorts": [
+                    {
+                        "property": self.knowledge_priority_prop,
+                        "direction": "ascending"
+                    }
+                ],
+                "page_size": 100  # 一次获取100条
+            }
+            
+            all_knowledge_items = []
+            has_more = True
+            
+            while has_more:
+                response = requests.post(url, headers=self.headers, json=payload, timeout=30)
+                response.raise_for_status()
+                
+                data = response.json()
+                results = data.get("results", [])
+                
+                for page in results:
+                    knowledge_data = self._extract_knowledge_data(page)
+                    if knowledge_data:
+                        all_knowledge_items.append(knowledge_data)
+                
+                # 检查是否还有更多页面
+                has_more = data.get("has_more", False)
+                if has_more:
+                    payload["start_cursor"] = data.get("next_cursor")
+            
+            print(f"📚 获取到 {len(all_knowledge_items)} 个知识条目用于构建索引")
+            return all_knowledge_items
+            
+        except Exception as e:
+            print(f"❌ 获取所有知识条目失败: {e}")
+            return []
+
     def test_knowledge_database_connection(self):
         """测试知识库数据库连接"""
         if not self.knowledge_db_id:
