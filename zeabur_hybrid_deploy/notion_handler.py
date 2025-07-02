@@ -170,6 +170,67 @@ class NotionHandler:
             print(f"更新Notion回复时出错: {e}")
             return False
 
+    def update_message(self, page_id, update_data):
+        """更新页面属性 - 通用方法，用于简单的属性更新"""
+        try:
+            # 构建属性更新数据
+            properties = {}
+            
+            # 处理输出属性
+            if "output" in update_data:
+                output_text = update_data["output"]
+                if len(output_text) > 2000:  # Notion属性文本长度限制
+                    # 如果文本太长，截断并添加省略号
+                    output_text = output_text[:1997] + "..."
+                
+                properties[self.output_prop] = {
+                    "rich_text": [
+                        {
+                            "text": {
+                                "content": output_text
+                            }
+                        }
+                    ]
+                }
+            
+            # 处理标题属性
+            if "title" in update_data:
+                title = update_data["title"].strip()
+                if len(title) > 100:  # Notion标题限制
+                    title = title[:100]
+                    
+                properties[self.title_prop] = {
+                    "title": [
+                        {
+                            "text": {
+                                "content": title
+                            }
+                        }
+                    ]
+                }
+            
+            # 发送更新请求
+            page_url = f"https://api.notion.com/v1/pages/{page_id}"
+            payload = {"properties": properties}
+            
+            print(f"正在更新页面属性: {page_id[:8]}...")
+            response = requests.patch(page_url, headers=self.headers, json=payload, timeout=30)
+            
+            if response.status_code == 200:
+                print(f"✅ 页面属性更新成功: {page_id[:8]}...")
+                return True
+            else:
+                print(f"❌ 页面属性更新失败: HTTP {response.status_code}")
+                print(f"错误详情: {response.text}")
+                return False
+                
+        except requests.exceptions.RequestException as e:
+            print(f"网络请求错误: {e}")
+            return False
+        except Exception as e:
+            print(f"更新页面属性时出错: {e}")
+            return False
+
     def _append_content_to_page(self, page_id, content):
         """将内容追加到页面内容块中"""
         try:
@@ -334,31 +395,31 @@ class NotionHandler:
             # 提取标题
             title_prop = properties.get(self.title_prop, {})
             title = ""
-            if title_prop.get("title"):
+            if title_prop.get("title") and len(title_prop["title"]) > 0:
                 title = title_prop["title"][0]["text"]["content"]
             
             # 提取输入内容
             content_prop = properties.get(self.input_prop, {})
             content = ""
-            if content_prop.get("rich_text"):
+            if content_prop.get("rich_text") and len(content_prop["rich_text"]) > 0:
                 content = content_prop["rich_text"][0]["text"]["content"]
             
             # 提取模板选择
             template_prop = properties.get(self.template_prop, {})
             template_choice = ""
-            if template_prop.get("select") and template_prop["select"]:
+            if template_prop.get("select") and template_prop["select"] and template_prop["select"].get("name"):
                 template_choice = template_prop["select"]["name"]
             
             # 提取标签
             tags_prop = properties.get(self.knowledge_prop, {})
             tags = []
-            if tags_prop.get("select") and tags_prop["select"]:
+            if tags_prop.get("select") and tags_prop["select"] and tags_prop["select"].get("name"):
                 tags = [tags_prop["select"]["name"]]
 
             # 提取模型选择
             model_prop = properties.get(self.model_prop, {})
             model_choice = ""
-            if model_prop.get("select") and model_prop["select"]:
+            if model_prop.get("select") and model_prop["select"] and model_prop["select"].get("name"):
                 model_choice = model_prop["select"]["name"]
 
             if not content:  # 如果没有内容，跳过这条记录
@@ -371,8 +432,7 @@ class NotionHandler:
                 "template_choice": template_choice,
                 "tags": tags,
                 "model_choice": model_choice,
-                "created_time": page.get("created_time", ""),
-                "_raw_page_data": page  # 保存原始页面数据供连续对话功能使用
+                "created_time": page.get("created_time", "")
             }
             
         except Exception as e:
@@ -987,206 +1047,4 @@ class NotionHandler:
             response.raise_for_status()
             return True, "模板库数据库连接成功！"
         except Exception as e:
-            return False, f"模板库数据库连接失败: {e}"
-    
-    # ================== 连续对话支持方法 ==================
-    
-    def _make_request(self, method: str, url: str, payload: dict = None) -> dict:
-        """
-        发送HTTP请求的通用方法
-        
-        Args:
-            method: HTTP方法 (GET, POST, PATCH, DELETE)
-            url: 请求URL
-            payload: 请求数据
-            
-        Returns:
-            dict: 响应数据
-        """
-        try:
-            if method.upper() == "GET":
-                response = requests.get(url, headers=self.headers, timeout=30)
-            elif method.upper() == "POST":
-                response = requests.post(url, headers=self.headers, json=payload, timeout=30)
-            elif method.upper() == "PATCH":
-                response = requests.patch(url, headers=self.headers, json=payload, timeout=30)
-            elif method.upper() == "DELETE":
-                response = requests.delete(url, headers=self.headers, timeout=30)
-            else:
-                raise ValueError(f"不支持的HTTP方法: {method}")
-            
-            response.raise_for_status()
-            return response.json()
-            
-        except requests.exceptions.RequestException as e:
-            print(f"HTTP请求失败 ({method} {url}): {e}")
-            return None
-        except Exception as e:  
-            print(f"请求处理失败: {e}")
-            return None
-    
-    def _update_page_properties(self, page_id: str, properties: dict) -> bool:
-        """
-        更新页面属性的通用方法
-        
-        Args:
-            page_id: 页面ID
-            properties: 要更新的属性
-            
-        Returns:
-            bool: 更新是否成功
-        """
-        try:
-            url = f"https://api.notion.com/v1/pages/{page_id}"
-            payload = {"properties": properties}
-            
-            response = self._make_request("PATCH", url, payload)
-            return response is not None
-            
-        except Exception as e:
-            print(f"更新页面属性失败: {e}")
-            return False
-    
-    def extract_conversation_fields_from_message(self, message_data: dict) -> dict:
-        """
-        从消息数据中提取连续对话字段（为向后兼容添加的方法）
-        
-        Args:
-            message_data: 来自_extract_message_data的消息数据
-            
-        Returns:
-            dict: 连续对话字段
-        """
-        # 从原始页面数据中提取连续对话字段
-        page_data = message_data.get("_raw_page_data", {})
-        if not page_data:
-            return {
-                "session_id": "",
-                "parent_id": "",
-                "session_status": "",
-                "conversation_turn": 0,
-                "session_title": "",
-                "context_length": 0
-            }
-        
-        properties = page_data.get("properties", {})
-        
-        # 获取字段名称（使用配置或默认值）
-        session_id_prop = getattr(self, 'session_id_prop', 'session_id_property')
-        parent_id_prop = getattr(self, 'parent_id_prop', 'parent_id_property')
-        session_status_prop = getattr(self, 'session_status_prop', 'session_status_property')
-        conversation_turn_prop = getattr(self, 'conversation_turn_prop', 'conversation_turn_property')
-        session_title_prop = getattr(self, 'session_title_prop', 'session_title_property')
-        context_length_prop = getattr(self, 'context_length_prop', 'context_length_property')
-        
-        return {
-            "session_id": self._extract_text_from_property(properties, session_id_prop),
-            "parent_id": self._extract_text_from_property(properties, parent_id_prop),
-            "session_status": self._extract_select_from_property(properties, session_status_prop),
-            "conversation_turn": self._extract_number_from_property(properties, conversation_turn_prop),
-            "session_title": self._extract_text_from_property(properties, session_title_prop),
-            "context_length": self._extract_number_from_property(properties, context_length_prop)
-        }
-    
-    def _extract_text_from_property(self, properties: dict, prop_name: str) -> str:
-        """从属性中提取文本内容"""
-        prop_data = properties.get(prop_name)
-        if not prop_data:
-            return ""
-        
-        # 处理Rich Text类型
-        if prop_data.get("type") == "rich_text":
-            rich_text_list = prop_data.get("rich_text", [])
-            if rich_text_list:
-                return rich_text_list[0].get("text", {}).get("content", "")
-        
-        # 处理Title类型
-        elif prop_data.get("type") == "title":
-            title_list = prop_data.get("title", [])
-            if title_list:
-                return title_list[0].get("text", {}).get("content", "")
-        
-        return ""
-    
-    def _extract_select_from_property(self, properties: dict, prop_name: str) -> str:
-        """从属性中提取选择内容"""
-        prop_data = properties.get(prop_name)
-        if not prop_data or prop_data.get("type") != "select":
-            return ""
-        
-        select_data = prop_data.get("select")
-        if select_data:
-            return select_data.get("name", "")
-        
-        return ""
-    
-    def _extract_number_from_property(self, properties: dict, prop_name: str) -> int:
-        """从属性中提取数字内容"""
-        prop_data = properties.get(prop_name)
-        if not prop_data or prop_data.get("type") != "number":
-            return 0
-        
-        return prop_data.get("number", 0) or 0
-    
-    def update_session_fields(self, page_id: str, session_fields: dict) -> bool:
-        """
-        更新页面的连续对话字段
-        
-        Args:
-            page_id: 页面ID
-            session_fields: 会话字段字典
-            
-        Returns:
-            bool: 更新是否成功
-        """
-        try:
-            # 构建更新数据
-            properties = {}
-            
-            # 映射字段（使用配置中的字段名称）
-            field_mapping = {
-                "session_id": self.config.get("notion", {}).get("session_id_property", "会话ID"),
-                "parent_id": self.config.get("notion", {}).get("parent_id_property", "父消息ID"),
-                "session_status": self.config.get("notion", {}).get("session_status_property", "会话状态"),
-                "conversation_turn": self.config.get("notion", {}).get("conversation_turn_property", "对话轮次"),
-                "session_title": self.config.get("notion", {}).get("session_title_property", "会话标题"),
-                "context_length": self.config.get("notion", {}).get("context_length_property", "上下文长度")
-            }
-            
-            for field_key, notion_prop in field_mapping.items():
-                if field_key in session_fields and session_fields[field_key] is not None:
-                    value = session_fields[field_key]
-                    
-                    if field_key in ["conversation_turn", "context_length"]:
-                        # 数字字段
-                        properties[notion_prop] = {
-                            "number": int(value)
-                        }
-                    elif field_key == "session_status":
-                        # 选择字段
-                        properties[notion_prop] = {
-                            "select": {
-                                "name": str(value)
-                            }
-                        }
-                    else:
-                        # 文本字段
-                        properties[notion_prop] = {
-                            "rich_text": [
-                                {
-                                    "text": {
-                                        "content": str(value)
-                                    }
-                                }
-                            ]
-                        }
-            
-            if properties:
-                return self._update_page_properties(page_id, properties)
-            else:
-                print("⚠️ 没有需要更新的会话字段")
-                return True
-                
-        except Exception as e:
-            print(f"❌ 更新会话字段失败: {e}")
-            return False
+            return False, f"模板库数据库连接失败: {e}" 

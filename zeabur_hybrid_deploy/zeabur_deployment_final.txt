@@ -1,0 +1,36 @@
+# =======================================================
+# Zeabur 环境变量配置 - 最终部署版本
+# 时间: 2025-01-17 21:07
+# 状态: ✅ 系统就绪，ngrok隧道已建立
+# 公网地址: https://cf26-1-203-80-194.ngrok-free.app
+# =======================================================
+
+# ========== 必需配置 ==========
+NOTION_API_KEY=your_notion_api_key_here
+NOTION_DATABASE_ID=your_database_id_here
+OPENROUTER_API_KEY=your_openrouter_api_key_here
+
+# ========== 混合架构关键配置 ==========
+DEPLOYMENT_MODE=hybrid
+LOCAL_RAG_ENABLED=true
+
+# 🎯 关键配置：本地RAG服务公网地址 (当前实际地址)
+LOCAL_RAG_SERVICE_URL=https://cf26-1-203-80-194.ngrok-free.app
+
+# ========== 性能调优 ==========
+RAG_REQUEST_TIMEOUT=10
+RAG_HEALTH_CHECK_INTERVAL=300
+RAG_RETRY_ATTEMPTS=3
+ENABLE_FALLBACK=true
+FALLBACK_TIMEOUT=5
+
+# ========== 运行环境 ==========
+FLASK_ENV=production
+FLASK_DEBUG=false
+LOG_LEVEL=INFO
+
+# ========== 可选配置 ==========
+# 如果本地网络发生变化，请更新此地址
+# LOCAL_RAG_SERVICE_URL=http://your-new-ngrok-url
+# LOCAL_RAG_SERVICE_URL=http://your-fixed-ip:8001
+# LOCAL_RAG_SERVICE_URL=http://your-domain.ddns.net:8001 

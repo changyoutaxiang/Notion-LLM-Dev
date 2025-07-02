@@ -1,6 +1,7 @@
 """
 RAG增强版调度器 - 展示如何真正集成RAG系统
 这个文件展示了如何让RAG系统基于用户问题进行智能检索，而不仅仅是标签匹配
+新增：连续对话功能支持
 """
 
 import time
@@ -9,6 +10,7 @@ from datetime import datetime
 from notion_handler import NotionHandler
 from llm_handler import LLMHandler
 from template_manager import TemplateManager
+from conversation_manager import ConversationManager
 
 class RAGEnhancedScheduler:
     """RAG增强版消息处理调度器"""
@@ -22,6 +24,9 @@ class RAGEnhancedScheduler:
         self.notion_handler = NotionHandler(config)
         self.llm_handler = LLMHandler(config["openrouter"]["api_key"])
         self.template_manager = TemplateManager()
+        
+        # 初始化连续对话管理器
+        self.conversation_manager = ConversationManager(self.notion_handler, config)
         
         # 统计信息
         self.message_count = 0
@@ -140,7 +145,7 @@ class RAGEnhancedScheduler:
         return self.notion_handler.get_context_from_knowledge_base(tags)
     
     def process_single_message(self, message):
-        """处理单条消息 - RAG增强版"""
+        """处理单条消息 - RAG增强版 + 连续对话支持"""
         try:
             page_id = message["page_id"]
             title = message["title"] or "无标题"
@@ -156,16 +161,112 @@ class RAGEnhancedScheduler:
                 self.gui.root.after(0, lambda: self.gui.add_log(f"开始处理 [{template_choice}]: {content[:30]}..."))
                 self.gui.root.after(0, lambda: self.gui.update_current_processing(process_info))
             
+            # 🔄 连续对话功能支持
+            conversation_context = ""
+            session_info = None
+            
+            if self.conversation_manager.is_enabled():
+                # 从消息中提取连续对话字段
+                conv_fields = self.notion_handler.extract_conversation_fields_from_message(message)
+                
+                # 判断是否为连续对话
+                if self.conversation_manager.is_conversation_message(conv_fields):
+                    # 这是连续对话
+                    session_id = conv_fields.get("session_id", "")
+                    parent_id = conv_fields.get("parent_id", "")
+                    
+                    log_msg = f"💬 检测到连续对话，会话ID: {session_id}"
+                    print(log_msg)
+                    if self.gui:
+                        self.gui.root.after(0, lambda: self.gui.add_log(log_msg))
+                    
+                    # 获取对话历史
+                    history = self.conversation_manager.get_conversation_history(session_id, page_id)
+                    
+                    if history:
+                        # 构建对话上下文
+                        conversation_context = self.conversation_manager.build_conversation_context(history, content)
+                        
+                        log_msg = f"📚 加载对话历史：{len(history)}轮，上下文长度：{len(conversation_context)}字符"
+                        print(log_msg)
+                        if self.gui:
+                            self.gui.root.after(0, lambda: self.gui.add_log(log_msg))
+                        
+                        # 更新会话信息
+                        session_info = {
+                            "session_id": session_id,
+                            "conversation_turn": len(history) + 1,
+                            "session_status": "active",
+                            "context_length": len(conversation_context)
+                        }
+                else:
+                    # 这是新对话
+                    session_info = self.conversation_manager.prepare_new_conversation(page_id)
+                    
+                    log_msg = f"🆕 创建新对话会话：{session_info['session_id']}"
+                    print(log_msg)
+                    if self.gui:
+                        self.gui.root.after(0, lambda: self.gui.add_log(log_msg))
+            else:
+                log_msg = "📝 连续对话功能已禁用，使用标准处理模式"
+                print(log_msg)
+                if self.gui:
+                    self.gui.root.after(0, lambda: self.gui.add_log(log_msg))
+            
             # 🎯 关键改进：使用增强的知识检索
             knowledge_context = self.get_knowledge_context(content, tags)
             
             # 获取基础系统提示词
             base_system_prompt = self._get_system_prompt(template_choice)
             
-            # 组合系统提示词
-            if knowledge_context:
+            # 🔄 组合系统提示词（支持连续对话 + RAG）
+            if knowledge_context and conversation_context:
+                # 同时有知识库上下文和对话历史
                 if self.enable_smart_rag:
-                    # RAG模式的提示词
+                    system_prompt = f"""{base_system_prompt}
+
+---
+
+## 🧠 智能检索到的相关知识
+{knowledge_context}
+
+---
+
+## 💬 对话历史上下文
+{conversation_context}
+
+---
+
+## 🎯 执行指令（RAG增强 + 连续对话模式）
+请综合利用以上信息回答用户的问题：
+
+1. **对话连续性**：基于对话历史理解上下文，保持回答的连贯性
+2. **知识优先级**：优先使用高相似度的智能检索结果
+3. **角色保持**：严格遵循角色设定的风格、格式和要求
+4. **自然融合**：将知识库内容和对话历史自然地融入回答中
+5. **适当引用**：可以提及相关知识来源或引用之前的对话内容
+"""
+                else:
+                    system_prompt = f"""{base_system_prompt}
+
+---
+
+## 📚 补充背景知识
+{knowledge_context}
+
+---
+
+## 💬 对话历史上下文
+{conversation_context}
+
+---
+
+## 执行指令（连续对话 + 知识增强模式）
+请基于对话历史和背景知识，在严格遵循角色设定的前提下回答用户的问题。
+"""
+            elif knowledge_context:
+                # 只有知识库上下文
+                if self.enable_smart_rag:
                     system_prompt = f"""{base_system_prompt}
 
 ---
@@ -185,7 +286,6 @@ class RAGEnhancedScheduler:
 5. **引用标注**：适当时可以提及相关知识来源以增加可信度
 """
                 else:
-                    # 传统模式的提示词
                     system_prompt = f"""{base_system_prompt}
 
 ---
@@ -198,11 +298,31 @@ class RAGEnhancedScheduler:
 ## 执行指令
 请在严格遵循上述角色设定和输出格式的前提下，充分利用补充背景知识来增强回答质量。
 """
+            elif conversation_context:
+                # 只有对话历史上下文
+                system_prompt = f"""{base_system_prompt}
+
+---
+
+## 💬 对话历史上下文
+{conversation_context}
+
+---
+
+## 🎯 执行指令（连续对话模式）
+请基于以上对话历史，理解上下文并保持回答的连贯性。请自然地继续这个对话。
+"""
             else:
+                # 没有额外上下文，使用基础提示词
                 system_prompt = base_system_prompt
             
-            # 用户消息保持原样
-            final_content = content
+            # 🔄 根据连续对话情况调整用户消息
+            if conversation_context:
+                # 连续对话模式：直接使用当前问题
+                final_content = content
+            else:
+                # 新对话模式：使用原始内容
+                final_content = content
 
             # 确定要使用的模型ID
             model_mapping = self.config.get("settings", {}).get("model_mapping", {})
@@ -258,6 +378,30 @@ class RAGEnhancedScheduler:
                 )
                 
                 if update_success:
+                    # 🔄 连续对话：更新会话字段
+                    if self.conversation_manager.is_enabled() and session_info:
+                        try:
+                            # 更新会话相关字段
+                            self.conversation_manager.update_session_fields(page_id, session_info)
+                            
+                            # 记录此次回复到会话历史
+                            self.conversation_manager.record_conversation_turn(
+                                session_info["session_id"], 
+                                page_id, 
+                                content, 
+                                llm_reply
+                            )
+                            
+                            log_msg = f"💬 会话字段更新成功：{session_info['session_id']} - 第{session_info['conversation_turn']}轮"
+                            print(log_msg)
+                            if self.gui:
+                                self.gui.root.after(0, lambda: self.gui.add_log(log_msg))
+                        except Exception as e:
+                            error_msg = f"⚠️ 会话字段更新失败: {e}"
+                            print(error_msg)
+                            if self.gui:
+                                self.gui.root.after(0, lambda: self.gui.add_log(error_msg))
+                    
                     self.message_count += 1
                     success_msg = f"✅ 消息处理成功 [{template_choice}]: {content[:30]}..."
                     print(success_msg)

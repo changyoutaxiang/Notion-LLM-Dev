@@ -19,6 +19,13 @@
     "template_description_property": "描述",
     "template_status_property": "状态",
     
+    "session_id_property": "会话ID",
+    "parent_id_property": "父消息ID", 
+    "session_status_property": "会话状态",
+    "conversation_turn_property": "对话轮次",
+    "session_title_property": "会话标题",
+    "context_length_property": "上下文长度",
+    
     "knowledge_database_id": "2203bbbae6d2807fbdc1efc299de259d",
     "category_database_id": "2203bbbae6d280398472fd7ffed521bc",
     "knowledge_title_property": "知识标题",
@@ -52,6 +59,18 @@
       "Chatgpt O3": "openai/o3",
       "Deepseek R1": "deepseek/deepseek-r1-0528",
       "Deepseek V3": "deepseek/deepseek-chat-v3-0324"
+    },
+    "continuous_conversation": {
+      "enabled": true,
+      "max_history_turns": 5,
+      "auto_generate_session_id": true,
+      "session_id_format": "sess_{timestamp}_{random}",
+      "enable_context_summary": true,
+      "max_context_length": 8000,
+      "history_weight": 0.3,
+      "enable_session_management": true,
+      "auto_close_inactive_sessions": false,
+      "inactive_session_days": 7
     }
   },
   "knowledge_search": {
