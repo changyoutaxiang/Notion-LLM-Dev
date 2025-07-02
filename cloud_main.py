@@ -315,6 +315,10 @@ class CloudScheduler:
     
     def _get_system_prompt(self, template_choice):
         """获取系统提示词"""
+        # 特殊处理：如果选择"无"，则不使用任何提示词模板
+        if template_choice == "无":
+            return ""
+        
         if template_choice:
             template = self.template_manager.get_template(template_choice)
             if template:

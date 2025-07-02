@@ -548,6 +548,11 @@ class NotionLLMGUI:
                     "api_key": self.openrouter_key_entry.get(),
                     "model": self.model_var.get()
                 },
+                "knowledge_search": {
+                    "enable_smart_rag": self.rag_enabled_var.get(),
+                    "max_snippets": int(self.max_results_var.get()),
+                    "similarity_threshold": float(self.similarity_threshold_var.get())
+                },
                 "settings": {
                     "check_interval": int(self.interval_var.get()),
                     "max_retries": 3,
@@ -658,6 +663,11 @@ class NotionLLMGUI:
                 "api_key": self.openrouter_key_entry.get(),
                 "model": self.model_var.get()
             },
+            "knowledge_search": {
+                "enable_smart_rag": self.rag_enabled_var.get(),
+                "max_snippets": int(self.max_results_var.get()),
+                "similarity_threshold": float(self.similarity_threshold_var.get())
+            },
             "settings": {
                 "check_interval": int(self.interval_var.get()),
                 "max_retries": 3,
@@ -683,8 +693,6 @@ class NotionLLMGUI:
         
         return True
     
-
-    
     def start_monitoring(self):
         """开始监听"""
         if not self.validate_config():
@@ -695,9 +703,23 @@ class NotionLLMGUI:
         self.stop_button.config(state="normal")
         self.status_label.config(text="状态: 运行中")
         
-        # 启动调度器线程
-        from scheduler import MessageScheduler
-        self.scheduler = MessageScheduler(self.config, self)
+        # 根据RAG配置选择调度器
+        rag_enabled = self.config.get("knowledge_search", {}).get("enable_smart_rag", False)
+        
+        if rag_enabled and self.check_rag_dependencies_silent():
+            # 使用RAG增强调度器
+            from scheduler_rag_enhanced import RAGEnhancedScheduler
+            self.scheduler = RAGEnhancedScheduler(self.config, self)
+            self.add_log("🧠 启动RAG智能检索模式")
+        else:
+            # 使用传统调度器
+            from scheduler import MessageScheduler
+            self.scheduler = MessageScheduler(self.config, self)
+            if rag_enabled:
+                self.add_log("⚠️ RAG已启用但依赖缺失，使用传统模式")
+            else:
+                self.add_log("🏷️ 启动传统标签检索模式")
+        
         self.scheduler_thread = threading.Thread(target=self.scheduler.start, daemon=True)
         self.scheduler_thread.start()
         
@@ -1032,10 +1054,6 @@ class NotionLLMGUI:
             else:
                 messagebox.showerror("错误", message)
     
-
-    
-
-    
     def open_template_editor(self, template_name=None, template=None):
         """打开简化的模板编辑器窗口"""
         # 创建新窗口
@@ -1165,6 +1183,139 @@ class NotionLLMGUI:
         if self.is_running:
             self.stop_monitoring()
         self.root.destroy()
+
+    def on_rag_toggle(self):
+        """RAG开关切换事件"""
+        if self.rag_enabled_var.get():
+            # 检查依赖
+            if not self.check_rag_dependencies_silent():
+                # 询问是否安装依赖
+                result = messagebox.askyesno("安装RAG依赖", 
+                                           "RAG智能检索需要额外的依赖包。\n\n是否现在安装？\n\n注意：这可能需要几分钟时间。")
+                if result:
+                    self.install_rag_dependencies()
+                else:
+                    self.rag_enabled_var.set(False)
+                    return
+        
+        self.update_rag_status()
+        
+    def check_rag_dependencies_silent(self):
+        """静默检查RAG依赖是否已安装"""
+        try:
+            import sentence_transformers
+            import faiss
+            from notion_knowledge_db import NotionKnowledgeDB
+            return True
+        except ImportError:
+            return False
+    
+    def check_rag_dependencies(self):
+        """检查RAG依赖状态并显示详细信息"""
+        missing_packages = []
+        installed_packages = []
+        
+        # 检查关键包
+        packages_to_check = [
+            ('sentence_transformers', 'Sentence Transformers'),
+            ('faiss', 'FAISS向量数据库'),
+            ('torch', 'PyTorch'),
+            ('transformers', 'Transformers'),
+            ('numpy', 'NumPy'),
+            ('sklearn', 'Scikit-learn')
+        ]
+        
+        for package_name, display_name in packages_to_check:
+            try:
+                __import__(package_name)
+                installed_packages.append(display_name)
+            except ImportError:
+                missing_packages.append(display_name)
+        
+        # 检查自定义模块
+        try:
+            from notion_knowledge_db import NotionKnowledgeDB
+            installed_packages.append('Notion知识库模块')
+        except ImportError:
+            missing_packages.append('Notion知识库模块')
+        
+        # 显示结果
+        result_msg = "🔍 RAG依赖检查结果:\n\n"
+        
+        if installed_packages:
+            result_msg += "✅ 已安装的包:\n"
+            for pkg in installed_packages:
+                result_msg += f"  • {pkg}\n"
+            result_msg += "\n"
+        
+        if missing_packages:
+            result_msg += "❌ 缺失的包:\n"
+            for pkg in missing_packages:
+                result_msg += f"  • {pkg}\n"
+            result_msg += "\n建议点击'安装RAG依赖'按钮进行安装。"
+        else:
+            result_msg += "🎉 所有RAG依赖都已安装，可以启用智能检索功能！"
+        
+        messagebox.showinfo("RAG依赖检查", result_msg)
+        
+    def install_rag_dependencies(self):
+        """安装RAG依赖"""
+        def install_thread():
+            try:
+                import subprocess
+                import sys
+                
+                self.add_log("📦 开始安装RAG依赖包...")
+                self.add_log("⏳ 这可能需要几分钟时间，请耐心等待...")
+                
+                # 检查requirements-full.txt是否存在
+                import os
+                if not os.path.exists("requirements-full.txt"):
+                    self.add_log("❌ requirements-full.txt 文件不存在")
+                    messagebox.showerror("错误", "requirements-full.txt 文件不存在")
+                    return
+                
+                # 安装依赖
+                result = subprocess.run([
+                    sys.executable, "-m", "pip", "install", "-r", "requirements-full.txt"
+                ], capture_output=True, text=True)
+                
+                if result.returncode == 0:
+                    self.add_log("✅ RAG依赖安装成功！")
+                    self.root.after(0, lambda: messagebox.showinfo("安装完成", "RAG依赖安装成功！\n\n现在可以启用智能检索功能了。"))
+                    self.root.after(0, self.update_rag_status)
+                else:
+                    error_msg = f"❌ 安装失败: {result.stderr}"
+                    self.add_log(error_msg)
+                    self.root.after(0, lambda: messagebox.showerror("安装失败", f"安装RAG依赖时出错:\n\n{result.stderr}"))
+                    
+            except Exception as e:
+                error_msg = f"❌ 安装过程出错: {e}"
+                self.add_log(error_msg)
+                self.root.after(0, lambda: messagebox.showerror("安装错误", f"安装过程中出现错误:\n\n{e}"))
+        
+        # 在后台线程中执行安装
+        threading.Thread(target=install_thread, daemon=True).start()
+        
+    def update_rag_status(self):
+        """更新RAG状态显示"""
+        if hasattr(self, 'rag_status_label'):
+            if self.rag_enabled_var.get():
+                if self.check_rag_dependencies_silent():
+                    self.rag_status_label.config(text="✅ RAG智能检索已启用，依赖包完整", foreground="#059669")
+                    # 显示RAG配置选项
+                    for widget in self.rag_config_frame.winfo_children():
+                        widget.pack_configure()
+                else:
+                    self.rag_status_label.config(text="⚠️ RAG已启用但缺少依赖包，请安装", foreground="#d97706")
+                    # 隐藏RAG配置选项
+                    for widget in self.rag_config_frame.winfo_children():
+                        widget.pack_forget()
+            else:
+                self.rag_status_label.config(text="🏷️ 使用传统标签检索模式", foreground="#6b7280")
+                # 隐藏RAG配置选项
+                for widget in self.rag_config_frame.winfo_children():
+                    widget.pack_forget()
 
 if __name__ == "__main__":
     # 创建并运行GUI

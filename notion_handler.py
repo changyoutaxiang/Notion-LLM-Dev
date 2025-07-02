@@ -65,7 +65,7 @@ class NotionHandler:
                         },
                         {
                             "property": self.knowledge_prop,
-                            "multi_select": {
+                            "select": {
                                 "is_not_empty": True
                             }
                         }
@@ -352,8 +352,8 @@ class NotionHandler:
             # 提取标签
             tags_prop = properties.get(self.knowledge_prop, {})
             tags = []
-            if tags_prop.get("multi_select"):
-                tags = [tag["name"] for tag in tags_prop["multi_select"]]
+            if tags_prop.get("select") and tags_prop["select"]:
+                tags = [tags_prop["select"]["name"]]
 
             # 提取模型选择
             model_prop = properties.get(self.model_prop, {})
@@ -409,7 +409,7 @@ class NotionHandler:
                                 },
                                 {
                                     "property": self.knowledge_prop,
-                                    "multi_select": {
+                                    "select": {
                                         "is_empty": True
                                     }
                                 }
