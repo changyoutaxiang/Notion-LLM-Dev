@@ -1,28 +1,18 @@
-# Notion-LLM 混合架构云端服务 - 轻量化依赖包
-# 专为Zeabur部署设计，大幅减少内存占用和启动时间
+# Notion-LLM 简化版 - 核心依赖包
+# 专注于Notion+LLM处理和基础RAG功能
 
-# 核心Web框架
+# 核心Web框架（云端服务用）
 Flask==2.3.3
 gunicorn==21.2.0
 
-# HTTP请求库（调用本地RAG服务和LLM API）
+# HTTP请求库（调用LLM API和Notion API）
 requests==2.31.0
-urllib3==2.0.7
 
-# JSON处理和数据验证
-jsonschema==4.19.1
-
-# 日志处理
-# logging是Python内置模块，不需要额外安装
+# GUI框架（本地版本用）
+# tkinter - Python内置模块，无需安装
 
 # 环境变量处理
 python-dotenv==1.0.0
 
 # 时间处理
 python-dateutil==2.8.2
-
-# 线程和并发处理（Python内置）
-# threading, concurrent.futures 是内置模块
-
-# 错误追踪和监控
-sentry-sdk==1.38.0

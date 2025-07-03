@@ -515,19 +515,40 @@ class NotionLLMGUI:
         self.add_log("🚀 程序启动完成")
     
     def load_config(self):
-        """加载配置文件"""
+        """加载配置文件，并自动补全Notion字段"""
+        default_notion = {
+            "api_key": "",
+            "database_id": "",
+            "input_property_name": "输入",
+            "output_property_name": "回复",
+            "status_property_name": "状态",
+            "status_in_progress": "In progress",
+            "status_done": "Done",
+            "template_property_name": "模板选择",
+            "knowledge_base_property_name": "背景",
+            "model_property_name": "模型",
+            "title_property_name": "标题"
+        }
         try:
             with open("config.json", "r", encoding="utf-8") as f:
-                return json.load(f)
+                config = json.load(f)
+                # 自动补全notion字段
+                if "notion" not in config:
+                    config["notion"] = default_notion.copy()
+                else:
+                    for k, v in default_notion.items():
+                        if k not in config["notion"]:
+                            config["notion"][k] = v
+                return config
         except FileNotFoundError:
             self.add_log("配置文件不存在，使用默认配置")
-            return {}
+            return {"notion": default_notion}
         except Exception as e:
             self.add_log(f"加载配置文件失败: {e}")
-            return {}
+            return {"notion": default_notion}
     
     def save_config(self):
-        """保存配置"""
+        """保存配置到config.json"""
         try:
             config = {
                 "notion": {
@@ -541,51 +562,21 @@ class NotionLLMGUI:
                     "template_property_name": "模板选择",
                     "knowledge_base_property_name": "背景",
                     "model_property_name": "模型",
-                    "title_property_name": "标题",
-                    "knowledge_base_path": "knowledge_base"
+                    "title_property_name": "标题"
                 },
                 "openrouter": {
                     "api_key": self.openrouter_key_entry.get(),
-                    "model": self.model_var.get()
-                },
-                "knowledge_search": {
-                    "enable_smart_rag": self.rag_enabled_var.get(),
-                    "max_snippets": int(self.max_results_var.get()),
-                    "similarity_threshold": float(self.similarity_threshold_var.get())
+                    "model": self.model_var.get(),
                 },
                 "settings": {
                     "check_interval": int(self.interval_var.get()),
-                    "max_retries": 3,
-                    "request_timeout": 30,
-                    "system_prompt": "你是一个智能助手，请认真回答用户的问题。请用中文回复。",
-                    "require_template_selection": True,
-                    "auto_generate_title": True,
-                    "title_max_length": 20,
-                    "title_min_length": 10,
-                    "auto_sync_templates": True,
-                    "sync_on_startup": True,
-                    "model_mapping": {
-                        "Gemini 2.5 pro": "google/gemini-2.5-pro",
-                        "Gemini 2.5 flash": "google/gemini-2.5-flash",
-                        "Claude 4 sonnet": "anthropic/claude-sonnet-4",
-                        "Chatgpt 4.1": "openai/gpt-4.1",
-                        "Chatgpt O3": "openai/o3",
-                        "Deepseek R1": "deepseek/deepseek-r1-0528",
-                        "Deepseek V3": "deepseek/deepseek-chat-v3-0324"
-                    }
                 }
             }
-            
             with open("config.json", "w", encoding="utf-8") as f:
                 json.dump(config, f, ensure_ascii=False, indent=2)
-            
-            self.config = config
-            messagebox.showinfo("成功", "配置已保存!")
-            self.add_log("配置已保存")
-            
+            messagebox.showinfo("保存成功", "配置已保存！")
         except Exception as e:
-            messagebox.showerror("错误", f"保存配置失败: {e}")
-            self.add_log(f"保存配置失败: {e}")
+            messagebox.showerror("保存配置失败", str(e))
     
     def test_connections(self):
         """测试API连接"""
@@ -643,53 +634,23 @@ class NotionLLMGUI:
             messagebox.showwarning("配置错误", "请填入OpenRouter API密钥")
             return False
         
-        # 保存当前配置到内存
-        self.config = {
-            "notion": {
-                "api_key": self.notion_key_entry.get(),
-                "database_id": self.notion_db_entry.get(),
-                "input_property_name": "输入",
-                "output_property_name": "回复",
-                "status_property_name": "状态",
-                "status_in_progress": "In progress",
-                "status_done": "Done",
-                "template_property_name": "模板选择",
-                "knowledge_base_property_name": "背景",
-                "model_property_name": "模型",
-                "title_property_name": "标题",
-                "knowledge_base_path": "knowledge_base"
-            },
-            "openrouter": {
-                "api_key": self.openrouter_key_entry.get(),
-                "model": self.model_var.get()
-            },
-            "knowledge_search": {
-                "enable_smart_rag": self.rag_enabled_var.get(),
-                "max_snippets": int(self.max_results_var.get()),
-                "similarity_threshold": float(self.similarity_threshold_var.get())
-            },
-            "settings": {
-                "check_interval": int(self.interval_var.get()),
-                "max_retries": 3,
-                "request_timeout": 30,
-                "system_prompt": "你是一个智能助手，请认真回答用户的问题。请用中文回复。",
-                "require_template_selection": True,
-                "auto_generate_title": True,
-                "title_max_length": 20,
-                "title_min_length": 10,
-                "auto_sync_templates": True,
-                "sync_on_startup": True,
-                "model_mapping": {
-                    "Gemini 2.5 pro": "google/gemini-2.5-pro",
-                    "Gemini 2.5 flash": "google/gemini-2.5-flash",
-                    "Claude 4 sonnet": "anthropic/claude-sonnet-4",
-                    "Chatgpt 4.1": "openai/gpt-4.1",
-                    "Chatgpt O3": "openai/o3",
-                    "Deepseek R1": "deepseek/deepseek-r1-0528",
-                    "Deepseek V3": "deepseek/deepseek-chat-v3-0324"
-                }
-            }
-        }
+        # --- 修复：不再创建新配置，而是在现有配置上更新 ---
+        # 确保self.config存在且结构完整
+        if not self.config or "notion" not in self.config:
+            self.config = self.load_config() # 如果丢失，重新加载
+
+        # 更新内存中的配置，而不是覆盖它
+        self.config["notion"]["api_key"] = self.notion_key_entry.get()
+        self.config["notion"]["database_id"] = self.notion_db_entry.get()
+        
+        if "openrouter" not in self.config:
+            self.config["openrouter"] = {}
+        self.config["openrouter"]["api_key"] = self.openrouter_key_entry.get()
+        self.config["openrouter"]["model"] = self.model_var.get()
+        
+        if "settings" not in self.config:
+            self.config["settings"] = {}
+        self.config["settings"]["check_interval"] = int(self.interval_var.get())
         
         return True
     
@@ -1184,22 +1145,6 @@ class NotionLLMGUI:
             self.stop_monitoring()
         self.root.destroy()
 
-    def on_rag_toggle(self):
-        """RAG开关切换事件"""
-        if self.rag_enabled_var.get():
-            # 检查依赖
-            if not self.check_rag_dependencies_silent():
-                # 询问是否安装依赖
-                result = messagebox.askyesno("安装RAG依赖", 
-                                           "RAG智能检索需要额外的依赖包。\n\n是否现在安装？\n\n注意：这可能需要几分钟时间。")
-                if result:
-                    self.install_rag_dependencies()
-                else:
-                    self.rag_enabled_var.set(False)
-                    return
-        
-        self.update_rag_status()
-        
     def check_rag_dependencies_silent(self):
         """静默检查RAG依赖是否已安装"""
         try:
@@ -1300,17 +1245,11 @@ class NotionLLMGUI:
     def update_rag_status(self):
         """更新RAG状态显示"""
         if hasattr(self, 'rag_status_label'):
-            if self.rag_enabled_var.get():
-                if self.check_rag_dependencies_silent():
-                    self.rag_status_label.config(text="✅ RAG智能检索已启用，依赖包完整", foreground="#059669")
-                    # 显示RAG配置选项
-                    for widget in self.rag_config_frame.winfo_children():
-                        widget.pack_configure()
-                else:
-                    self.rag_status_label.config(text="⚠️ RAG已启用但缺少依赖包，请安装", foreground="#d97706")
-                    # 隐藏RAG配置选项
-                    for widget in self.rag_config_frame.winfo_children():
-                        widget.pack_forget()
+            if self.check_rag_dependencies_silent():
+                self.rag_status_label.config(text="✅ RAG智能检索已启用，依赖包完整", foreground="#059669")
+                # 显示RAG配置选项
+                for widget in self.rag_config_frame.winfo_children():
+                    widget.pack_configure()
             else:
                 self.rag_status_label.config(text="🏷️ 使用传统标签检索模式", foreground="#6b7280")
                 # 隐藏RAG配置选项

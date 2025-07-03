@@ -1,509 +1,173 @@
-# Notion-LLM 异步工作流助手 - 🚧 开发版
+# Notion-LLM 简化版
 
-> ⚠️ **这是开发版本仓库** - 用于功能迭代、测试和实验性功能开发
+> **专注核心功能的 Notion + LLM 异步对话系统**
 
-🔗 **稳定版本仓库**: [changyoutaxiang/-notion-NotionHandler](https://github.com/changyoutaxiang/-notion-NotionHandler) (推荐日常使用)
+## ✨ 项目概述
 
-## 🎯 仓库说明
+这是一个简化版的 Notion-LLM 项目，专注于核心功能：
+- **本地版本**：GUI界面 + 基础RAG功能 + Notion+LLM异步对话
+- **云端版本**：API服务 + Notion+LLM异步对话
 
-### 📊 版本分工
-| 仓库类型 | 仓库名称 | 用途 | 稳定性 | 更新频率 |
-|---------|---------|------|---------|----------|
-| **生产版** | `-notion-NotionHandler` | 日常使用 | 🟢 高度稳定 | 重大版本发布 |
-| **开发版** | `Notion-LLM-Dev` | 功能开发 | 🟡 持续迭代 | 频繁更新 |
+## 🎯 核心功能
 
-### 🌿 分支策略
-- **`main`**: 相对稳定的开发版本，经过基本测试
-- **`development`**: 日常开发分支，最新功能和实验性改动
-- **`feature/*`**: 特性开发分支（按需创建）
+### ✅ 保留功能
+- 📝 **Notion输入处理**：监控Notion数据库中的新输入
+- 🤖 **LLM异步对话**：调用OpenRouter API进行智能回复  
+- 📚 **基础RAG功能**：本地知识库文件检索（基于标签）
+- 🎨 **模板系统**：支持多种提示词模板
+- 🖥️ **本地GUI**：简洁的桌面应用界面
+- ☁️ **云端API**：轻量级Web服务接口
 
-## 🚀 最新版本: v2.2
 
-### ✨ 核心功能
-- **🔄 自动化Notion工作流**: 自动监听和处理Notion数据库条目
-- **🤖 多模型LLM支持**: Gemini、Claude、ChatGPT、DeepSeek等
-- **📚 本地知识库(RAG)**: 智能上下文注入
-- **🎯 Notion模板库管理**: 完整的模板CRUD和同步功能
-- **🖥️ 现代化GUI界面**: 实时监控和管理
+## 🚀 快速开始
 
-### 🔗 Notion模板库管理（v2.2新功能）
-- 📥 **从Notion同步**: 将Notion中的模板同步到本地
-- 📤 **同步到Notion**: 将本地模板推送到Notion
-- 🏷️ **分类管理**: 按类别组织模板（基础、管理、心理等）
-- ⚡ **状态控制**: 启用/禁用模板功能
-- 🔄 **自动同步**: 模板选项自动更新到主数据库
+### 本地使用
 
-## 🛠️ 开发环境设置
-
-### 环境要求
+1. **安装依赖**
 ```bash
-Python 3.8+
 pip install -r requirements.txt
 ```
 
-### 配置文件
-复制 `config.example.json` 为 `config.json` 并配置：
-- Notion API密钥和数据库ID
-- OpenRouter API密钥
-- 模板库数据库配置
-
-### 启动开发版本
+2. **配置环境**
 ```bash
-# GUI模式
-python gui.py
+cp config.example.json config.json
+# 编辑config.json，填入你的API密钥
+```
 
-# 命令行模式  
+3. **验证配置**
+```bash
+python validate_config.py
+# 验证配置文件是否正确设置
+```
+
+4. **启动本地GUI**
+```bash
 python main.py
+```
 
-# 云端模式
+### 云端部署
+
+1. **设置环境变量**
+```bash
+export NOTION_API_KEY="your_notion_api_key"
+export NOTION_DATABASE_ID="your_database_id"
+export OPENROUTER_API_KEY="your_openrouter_api_key"
+```
+
+2. **启动云端服务**
+```bash
 python cloud_main.py
 ```
 
-## 📋 开发工作流
+## 📁 项目结构
 
-### 🔄 日常开发
-```bash
-# 切换到开发分支
-git checkout development
-
-# 拉取最新更改
-git pull dev development  
-
-# 开发新功能...
-# 提交更改
-git add .
-git commit -m "feat: 新功能描述"
-git push dev development
+```
+简化后的项目结构/
+├── gui.py                    # 本地GUI应用
+├── main.py                   # 本地主程序入口
+├── cloud_main.py             # 云端服务入口
+├── scheduler.py              # 基础消息调度器
+├── notion_handler.py         # Notion API处理
+├── llm_handler.py           # LLM API处理
+├── template_manager.py       # 模板管理器
+├── knowledge_base/           # 本地知识库文件夹
+├── templates.json            # 默认模板库
+├── config.example.json       # 配置文件示例
+└── requirements.txt          # 依赖文件
 ```
 
-### 🚀 版本发布流程
+## ⚙️ 配置说明
+
+### 配置验证工具
+使用 `validate_config.py` 来验证配置文件是否正确设置：
 ```bash
-# 1. 合并到main分支
-git checkout main
-git merge development
-git push dev main
-
-# 2. 推送到生产版仓库（重大版本）
-git push origin main
-
-# 3. 创建版本标签
-git tag -a v2.3.0 -m "版本描述"
-git push dev v2.3.0
-git push origin v2.3.0
+python validate_config.py
 ```
 
-### 🎯 特性开发
-```bash
-# 创建特性分支
-git checkout -b feature/新功能名称
+该工具会检查：
+- ✅ Notion API密钥和数据库ID是否填入
+- ✅ OpenRouter API密钥是否有效
+- ✅ 所有必需的配置项是否存在
+- ✅ 配置值是否在有效范围内
+- ✅ 项目文件结构是否完整
 
-# 开发完成后合并到development
-git checkout development
-git merge feature/新功能名称
-git push dev development
-```
+### 必需配置
+- `NOTION_API_KEY`: Notion集成密钥
+- `NOTION_DATABASE_ID`: Notion数据库ID
+- `OPENROUTER_API_KEY`: OpenRouter API密钥
 
-## 🐛 问题反馈
+### 可选配置  
+- `CHECK_INTERVAL`: 检查间隔（秒，默认120）
+- `AUTO_TITLE`: 自动生成标题（默认true）
+- `OPENROUTER_MODEL`: 默认模型（默认claude-3.5-sonnet）
 
-开发过程中遇到的问题：
-1. **创建Issue**: 在本仓库创建问题报告
-2. **开发讨论**: 使用Discussions功能
-3. **Pull Request**: 提交代码改进
-
-## 📝 更新日志
-
-### v2.2.0 (当前版本)
-- ✨ 新增：完整Notion模板库管理系统
-- 🔄 新增：双向同步功能
-- 🏗️ 优化：架构重构和代码清理
-- 📖 新增：详细设计文档
-
-### v2.1.0
-- 🔍 新增：调试工具和上下文验证
-- ✅ 修复：API密钥和背景文件加载问题
-- 🚀 优化：性能改进和错误处理
-
-## 🎯 路线图
-
-### 近期计划 (v2.3)
-- [ ] 模板版本历史功能
-- [ ] 批量模板操作
-- [ ] 模板分享和导入导出
-- [ ] 更好的GUI用户体验
-
-### 中期计划 (v2.4+)
-- [ ] 多用户协作功能
-- [ ] 模板统计和分析
-- [ ] API接口开放
-- [ ] 插件系统
-
----
-
-**⚠️ 重要提醒**: 
-- 本仓库为**开发版本**，功能可能不稳定
-- **日常使用**请使用[稳定版仓库](https://github.com/changyoutaxiang/-notion-NotionHandler)
-- 开发版本用于**测试新功能**和**快速迭代**
-
-**📧 联系**: 如有问题或建议，欢迎提交Issue或讨论
-
-# Notion-LLM 异步工作流助手
-
-🤖 一个高度可配置的自动化工具，旨在连接Notion数据库、本地知识库和大型语言模型（LLM），实现复杂的异步工作流。
-
-## 🌟 核心功能
-
-### 基础功能
-- **🔄 自动化Notion工作流**: 自动监听Notion数据库，当满足特定条件时触发处理流程
-- **🤖 智能模型选择**: 支持多种LLM模型，包括标准模式和推理模式
-- **📚 本地知识库 (RAG)**: 通过标签自动从本地Markdown文件中读取上下文
-- **📋 模板化提示工程**: 使用模板标签应用预设的系统提示词
-- **🖥️ 现代化GUI界面**: 简洁美观的图形界面，实时监控和日志
-- **🔗 Notion模板库管理**: 直接在Notion中创建、编辑和管理提示词模板
-
-### 高级功能
-- **🎯 双异步模式**: 需选择模板才执行处理，避免意外触发
-- **🧠 AI自动生成标题**: 对无标题条目自动生成10-20字的自然标题
-- **📊 智能统计**: 实时显示等待和处理状态
-- **🔄 自动模板同步**: 自动同步模板选项到Notion数据库
-- **⚡ 混合推理支持**: 完美支持Gemini 2.5 Pro等推理模型
-- **📝 内容智能处理**: 自动长度限制、内容清洗和错误恢复
-
-## 🎯 最新更新 (v2.2)
-
-### 🏗️ 架构重大优化
-1. **文件结构清理**: 清理了zeabur_deploy目录中的重复文件，消除代码冗余
-2. **GUI界面简化**: 移除了废弃的系统提示词设置模块（节省199行代码）
-3. **工作流统一**: 确立了以Notion为中心的统一操作流程
-4. **代码架构优化**: 提升了代码维护性和扩展性
-
-### 🔗 Notion模板库管理（新功能）
-1. **完整模板管理**: 可以直接在Notion中创建、编辑、删除提示词模板
-2. **双向同步功能**: 
-   - 📥 从Notion同步模板到本地
-   - 📤 从本地同步模板到Notion
-3. **状态管理**: 支持启用/禁用模板状态控制
-4. **分类管理**: 按分类组织模板，便于管理和查找
-5. **GUI集成**: 在模板库界面添加同步按钮，操作简单直观
-
-### ✨ 用户体验重大提升
-1. **简化模板选择**: 移除GUI中复杂的硬编码预设，统一使用模板库
-2. **统一工作流程**: "配置→模板库管理→Notion操作"的清晰流程
-3. **界面优化**: 移除不必要的复杂功能，专注核心体验
-4. **操作透明化**: 用户可以清楚了解每一步操作的作用
-
-### 🔧 技术改进
-- **配置文件扩展**: 新增模板库数据库配置支持
-- **NotionHandler增强**: 新增模板库操作方法
-- **TemplateManager升级**: 支持Notion同步功能
-- **错误处理优化**: 更好的错误提示和处理机制
-
-## 🎯 之前更新 (v2.1)
-
-### 🔍 全新调试功能
-1. **完整上下文调试**: 新增专门的调试工具 `debug_context.py`，可以查看完整的LLM输入上下文
-2. **背景文件验证**: 实时验证背景文件是否正确加载，显示文件大小和字符数
-3. **详细日志输出**: 系统运行时显示系统提示词、背景文件长度、最终LLM输入内容
-4. **一键调试脚本**: `调试上下文.sh` 快速启动调试工具
-
-### ✅ 重大修复
-1. **API密钥更新**: 修复OpenRouter API认证问题，更新有效密钥
-2. **背景文件加载**: 100%确认背景文件能够完美加载到LLM上下文
-3. **云端版本同步**: 确保本地版本和云端部署版本功能完全一致
-4. **推理模式支持**: 完整支持各种LLM模型的推理输出处理
-
-### 🚀 性能优化
-- **智能内容截断**: Notion Rich Text 2000字符限制保护
-- **增强错误处理**: 详细的错误日志和自动恢复机制
-- **内容清洗改进**: 更温和的内容处理，保留格式完整性
-- **云端调试日志**: 云端版本也支持完整的调试信息输出
-
-### 🎨 用户体验提升
-- **现代化UI设计**: 全新的卡片式界面设计
-- **实时状态显示**: 详细的处理进度和统计信息
-- **完整的模板管理**: 内置模板编辑器和导入导出功能
-- **上下文透明化**: 用户可以随时检查输入给LLM的完整内容
-
-## 🤖 支持的模型
-
-### Google Gemini 系列
-- ✅ **Gemini 2.5 Flash** (`google/gemini-2.5-flash`) - 快速响应
-- ✅ **Gemini 2.5 Pro** (`google/gemini-2.5-pro`) - 推理模式支持
-
-### Anthropic Claude 系列  
-- ✅ **Claude 4 Sonnet** (`anthropic/claude-sonnet-4`) - 高质量分析
-
-### OpenAI ChatGPT 系列
-- ✅ **ChatGPT 4.1** (`openai/gpt-4.1`) 
-- ✅ **ChatGPT O3** (`openai/o3`)
-
-### DeepSeek 系列
-- ✅ **DeepSeek R1** (`deepseek/deepseek-r1-0528`) - 推理模型
-- ✅ **DeepSeek V3** (`deepseek/deepseek-chat-v3-0324`) - 对话模型
-
-> **注意**: 所有模型都通过 [OpenRouter.ai](https://openrouter.ai/) 访问，支持标准模式和推理模式的自动适配。
-
-## ⚙️ 快速开始
-
-### 1. 环境准备
-
-#### 安装依赖
-```bash
-# 克隆项目
-git clone [你的项目地址]
-cd 异步小项目
-
-# 安装依赖
-pip install -r requirements.txt
-```
-
-#### API 密钥准备
-- **Notion API**: 访问 [Notion Developers](https://www.notion.so/my-integrations) 创建集成
-- **OpenRouter API**: 访问 [OpenRouter.ai](https://openrouter.ai/) 获取密钥
-
-### 2. Notion 数据库设置
-
-#### 主工作数据库
-创建主工作数据库并包含以下字段：
-
-| 字段名称 | 字段类型 | 必需 | 说明 |
-|---------|---------|------|------|
-| **标题** | Title | ✅ | 任务标题，为空时自动生成 |
-| **输入** | Rich Text | ✅ | 用户输入的内容 |
-| **回复** | Rich Text | ✅ | LLM生成的回复 |
-| **模板选择** | Select | ✅ | 选择提示词模板 |
-| **模型** | Select | ✅ | 选择LLM模型 |
-| **背景** | Multi-select | ✅ | 选择知识库文件 |
-| **状态** | Status | ⚪ | 可选的状态跟踪 |
-
-#### 模板库数据库（新功能）
-创建模板库数据库来管理所有提示词模板：
-
-| 字段名称 | 字段类型 | 必需 | 说明 |
-|---------|---------|------|------|
-| **模板名称** | Title | ✅ | 模板的唯一名称 |
-| **分类** | Select | ✅ | 模板分类（基础、管理、心理、教育等）|
-| **描述** | Text | ⚪ | 模板的简短描述 |
-| **状态** | Select | ✅ | 启用/禁用（只有启用的模板会被同步）|
-| **页面内容** | - | ✅ | 具体的提示词内容（写在页面正文中）|
-
-> **💡 提示**: 模板的提示词内容需要写在页面的正文中，而不是在属性字段里。这样可以支持更长的内容和更好的编辑体验。
-
-### 3. 配置文件设置
-
-复制 `config.example.json` 为 `config.json` 并配置：
-
+### 配置文件示例
 ```json
 {
   "notion": {
-    "api_key": "你的Notion API密钥",
-    "database_id": "你的主工作数据库ID",
+    "api_key": "secret_your_notion_api_key",
+    "database_id": "your_database_id",
     "input_property_name": "输入",
-    "output_property_name": "回复", 
-    "template_property_name": "模板选择",
-    "model_property_name": "模型",
-    "knowledge_base_property_name": "背景",
-    "title_property_name": "标题",
-    "knowledge_base_path": "knowledge_base",
-    "template_database_id": "你的模板库数据库ID",
-    "template_name_property": "模板名称",
-    "template_category_property": "分类",
-    "template_description_property": "描述",
-    "template_status_property": "状态"
+    "output_property_name": "回复"
   },
   "openrouter": {
-    "api_key": "你的OpenRouter API密钥"
+    "api_key": "sk-or-your_openrouter_api_key",
+    "model": "anthropic/claude-3.5-sonnet"
   },
   "settings": {
-    "check_interval": 60,
-    "auto_generate_title": true,
-    "title_max_length": 20,
-    "title_min_length": 10,
-    "auto_sync_templates": true,
-    "model_mapping": {
-      "Gemini 2.5 pro": "google/gemini-2.5-pro",
-      "Gemini 2.5 flash": "google/gemini-2.5-flash",
-      "Claude 4 sonnet": "anthropic/claude-sonnet-4"
-    }
+    "check_interval": 120,
+    "auto_generate_title": true
   }
 }
 ```
 
-### 4. 知识库设置
+## 📚 使用说明
 
-在 `knowledge_base/` 文件夹中创建Markdown文件：
-- 文件名需与Notion中的"背景"标签完全一致
-- 支持中文文件名
-- 例如：`AI效率中心.md`、`业务理解.md`
-- **特殊标签"无"**：如果选择"无"作为背景，程序将跳过知识库读取，直接使用模板处理用户输入
+### 本地RAG功能
 
-## 🚀 使用指南
+在`knowledge_base/`文件夹中放置`.md`文件，在Notion的"背景"字段中输入对应的文件名（无扩展名），系统会自动加载相关知识。
 
-### 启动程序
-```bash
-python main.py
-```
+### 模板使用
 
-### 🔍 调试功能
-如需检查背景文件是否正确加载，可使用专门的调试工具：
+在Notion的"模板选择"字段中选择预设模板，或在`templates.json`中自定义模板。
 
-```bash
-# 方式1：直接运行调试脚本
-./调试上下文.sh
+## 🔧 API接口
 
-# 方式2：直接运行Python调试工具  
-python debug_context.py
-```
+### 云端服务API
 
-调试工具提供两种模式：
-- **模式1**: 调试待处理消息的完整上下文（显示系统提示词、背景文件、最终LLM输入）
-- **模式2**: 查看知识库文件内容（按标签浏览背景文件）
+- `GET /health` - 健康检查
+- `POST /start` - 启动调度器  
+- `POST /stop` - 停止调度器
+- `GET /status` - 获取运行状态
 
-### 🔄 全新工作流程
+## 🎨 简化优势
 
-#### 📋 模板管理（推荐使用Notion）
-1. **在Notion模板库数据库中创建模板**:
-   - 设置模板名称、分类、描述
-   - 将提示词内容写在页面正文中
-   - 设置状态为"启用"
-2. **在GUI中同步模板**:
-   - 点击"📥 从Notion同步"获取最新模板
-   - 或点击"📤 同步到Notion"上传本地模板
+### 🏃‍♂️ 更快启动
+- 减少依赖包数量
+- 移除复杂初始化逻辑
+- 简化配置流程
 
-#### 💼 日常使用流程
-1. **在主工作数据库中创建新条目**
-2. **填写"输入"内容**
-3. **选择"模板选择"、"模型"、"背景"**
-   - 模板选择：从Notion模板库中同步的模板列表
-   - 如果选择"无"作为背景，将不使用知识库上下文
-   - 如果选择其他背景标签，会自动加载对应的知识库文件
-4. **程序自动检测并处理**
-5. **查看"回复"字段的AI回复**
-6. **（可选）查看运行日志确认背景文件加载情况**
+### 🧠 更易理解
+- 清晰的功能边界
+- 简化的代码结构  
+- 减少学习成本
 
-#### 🎯 推荐工作流程
-```
-配置API → 创建模板库 → GUI同步模板 → Notion日常操作
-```
+### 🛠️ 更好维护
+- 专注核心功能
+- 减少错误点
+- 易于扩展
 
-> **💡 最佳实践**: 将模板管理集中在Notion中，这样可以随时随地管理模板，无需回到本地GUI。
+## 📈 版本历史
 
-### 触发条件
-程序会处理满足以下**所有**条件的条目：
-- ✅ "回复"字段为空
-- ✅ "模板选择"已选择
-- ✅ "模型"已选择  
-- ✅ "背景"已选择（至少一个）
+- **v3.0** - 项目简化版本
+  - 移除混合架构、连续对话、内网穿透
+  - 保留核心Notion+LLM+基础RAG功能
+  - 优化代码结构和依赖
 
-## 🛠️ 功能特性
+## 🤝 贡献
 
-### 智能适配
-- **推理模式自动识别**: 自动识别并处理Gemini 2.5 Pro的推理输出
-- **内容长度保护**: 自动截断超长内容，防止API限制
-- **错误自动恢复**: 失败时自动记录错误信息到Notion
-- **知识库灵活控制**: 支持"无"标签跳过知识库读取，适应不同场景需求
-
-### 用户体验
-- **现代化界面**: 卡片式设计，清晰的状态指示
-- **实时监控**: 处理进度、统计信息一目了然
-- **详细日志**: 完整的操作记录和错误诊断
-
-### 可扩展性
-- **Notion模板库管理**: 在Notion中直接管理模板，支持双向同步
-- **本地模板编辑**: 内置编辑器，支持导入导出
-- **模型映射**: 灵活的模型配置系统
-- **知识库**: 简单的文件命名规则，易于扩展
-
-### 模板库管理
-- **Notion集成**: 直接在Notion中创建和编辑模板
-- **双向同步**: 本地与Notion模板库的无缝同步
-- **状态控制**: 启用/禁用模板状态管理
-- **分类管理**: 按分类组织模板，便于查找和管理
-- **版本统一**: 确保本地和云端使用相同的模板
-
-## 🔧 故障排除
-
-### 常见问题
-
-**❌ 程序无法启动**
-- 检查依赖包是否安装完整
-- 确认配置文件格式正确
-
-**❌ 监听功能报错**  
-- 验证Notion API密钥和数据库ID
-- 确认字段名称与配置文件匹配
-
-**❌ Gemini 2.5 Pro返回空内容**
-- 已修复：程序现在自动支持推理模式
-- 确保使用最新版本的代码
-
-**❌ Notion更新失败**
-- 检查Notion集成权限
-- 确认内容长度不超过限制
-
-### 日志分析
-程序提供详细的日志输出：
-- 🟢 成功操作显示为绿色
-- 🔴 错误操作显示为红色  
-- 📝 处理信息显示具体步骤
-
-## 📈 开发计划
-
-### 即将推出
-- [ ] 更多LLM模型支持
-- [ ] 批量处理功能
-- [ ] 自定义字段映射
-- [ ] 多数据库支持
-
-### 长期规划
-- [ ] 插件系统
-- [x] 云端部署支持 ✅ **已完成**
-- [ ] 工作流可视化编辑器
-
-## ☁️ 云端部署
-
-项目已完全支持云端部署，包含完整的Zeabur部署配置：
-
-### 部署文件
-- `zeabur_deploy/` - 云端版本文件夹
-- `Dockerfile` - Docker容器配置
-- `Zeabur_Git部署指南.md` - 详细部署指南
-- `.zeabur_ignore` - 部署时忽略的文件
-
-### 云端特性
-- ✅ **背景文件同步**: 云端版本完美支持背景文件加载
-- ✅ **调试日志**: 云端运行时显示完整的上下文调试信息
-- ✅ **API接口**: 提供健康检查、启动/停止等管理接口
-- ✅ **自动重启**: 支持环境变量配置和自动启动
-
-### 部署步骤
-1. 推送代码到Git仓库
-2. 在Zeabur中连接Git仓库
-3. 配置环境变量（参考 `zeabur_env_config.txt`）
-4. 自动部署完成
-
-> 详细部署指南请参考 `Zeabur_Git部署指南.md`
-
-## 🤝 贡献指南
-
-欢迎提交Issues和Pull Requests！
-
-1. Fork 本项目
-2. 创建功能分支
-3. 提交更改
-4. 发起Pull Request
+欢迎提交Issue和Pull Request来改进项目！
 
 ## 📄 许可证
 
-本项目采用 MIT 许可证。
-
-## 🙏 致谢
-
-感谢所有贡献者和用户的支持！
-
----
-
-**🎉 开始你的自动化工作流之旅吧！**
-
-> 最后更新: 2025-01-28  
-> 版本: v2.2 - Notion模板库管理版本  
-> 主要更新: 架构优化 + Notion模板库管理 + 用户体验提升 
+MIT License 

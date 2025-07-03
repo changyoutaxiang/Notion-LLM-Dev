@@ -10,18 +10,32 @@ class NotionHandler:
         # 保存完整配置以便后续使用
         self.config = config
         
-        notion_config = config['notion']
-        self.api_key = notion_config['api_key']
-        self.database_id = notion_config['database_id']
+        notion_config = config.get('notion')
+        if not notion_config:
+            raise ValueError("配置文件中缺少 'notion' 部分，请检查 config.json")
+
+        # --- 增强配置读取的健壮性 ---
+        self.api_key = notion_config.get('api_key')
+        self.database_id = notion_config.get('database_id')
+
+        if not self.api_key or self.api_key.startswith("请填入"):
+            raise ValueError("配置文件中缺少 Notion API Key，请检查 config.json")
+        if not self.database_id or self.database_id.startswith("请填入"):
+            raise ValueError("配置文件中缺少 Notion Database ID，请检查 config.json")
         
         # 从配置中加载所有需要的属性名称
-        self.input_prop = notion_config['input_property_name']
-        self.output_prop = notion_config['output_property_name']
-        self.template_prop = notion_config['template_property_name']
-        self.knowledge_prop = notion_config['knowledge_base_property_name']
-        self.model_prop = notion_config['model_property_name']
-        self.title_prop = notion_config['title_property_name']
+        self.input_prop = notion_config.get('input_property_name')
+        self.output_prop = notion_config.get('output_property_name')
+        self.template_prop = notion_config.get('template_property_name')
+        self.knowledge_prop = notion_config.get('knowledge_base_property_name')
+        self.model_prop = notion_config.get('model_property_name')
+        self.title_prop = notion_config.get('title_property_name')
         
+        if not self.input_prop:
+            raise ValueError("配置文件中缺少 'input_property_name'，请检查 config.json")
+        if not self.output_prop:
+            raise ValueError("配置文件中缺少 'output_property_name'，请检查 config.json")
+
         # 模板库数据库配置
         self.template_database_id = notion_config.get('template_database_id')
         self.template_name_prop = notion_config.get('template_name_property', '模板名称')

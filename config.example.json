@@ -1,132 +1,53 @@
 {
   "notion": {
     "api_key": "请填入你的Notion API密钥",
-    "database_id": "your_database_id",
+    "database_id": "请填入你的Notion数据库ID",
     "input_property_name": "输入",
     "output_property_name": "回复",
     "status_property_name": "状态",
     "status_in_progress": "In progress",
     "status_done": "Done",
-    "template_property_name": "模版",
+    "template_property_name": "模板选择",
     "knowledge_base_property_name": "背景",
-    "model_property_name": "类型",
+    "model_property_name": "模型",
     "title_property_name": "标题",
     "knowledge_base_path": "knowledge_base",
-    "template_database_id": "your_template_database_id",
+    "template_database_id": "请填入你的模板库数据库ID（可选）",
     "template_name_property": "模板名称",
     "template_category_property": "分类",
     "template_prompt_property": "提示词",
     "template_description_property": "描述",
-    "template_status_property": "状态",
-    
-    "session_id_property": "会话ID",
-    "parent_id_property": "父消息ID", 
-    "session_status_property": "会话状态",
-    "conversation_turn_property": "对话轮次",
-    "session_title_property": "会话标题",
-    "context_length_property": "上下文长度",
-    
-    "knowledge_database_id": "2203bbbae6d2807fbdc1efc299de259d",
-    "category_database_id": "2203bbbae6d280398472fd7ffed521bc",
-    "knowledge_title_property": "知识标题",
-    "knowledge_category_property": "知识分类",
-    "knowledge_subcategory_property": "知识子类",
-    "knowledge_keywords_property": "关键词",
-    "knowledge_scenarios_property": "适用场景",
-    "knowledge_priority_property": "优先级",
-    "knowledge_status_property": "状态",
-    "knowledge_relations_property": "关联知识",
-    "knowledge_usage_property": "使用频率"
+    "template_status_property": "状态"
   },
   "openrouter": {
-    "api_key": "请填入你的OpenRouter API密钥"
+    "api_key": "请填入你的OpenRouter API密钥",
+    "model": "anthropic/claude-3.5-sonnet"
   },
   "settings": {
-    "check_interval": 30,
+    "check_interval": 120,
     "max_retries": 3,
     "request_timeout": 30,
-    "system_prompt": "你是一个专家助手，你的任务是直接、简洁地回答用户的问题。请不要在回复中包含你的思考过程、推理步骤或任何形式的自我评论。直接给出最终答案。请用中文回复。",
+    "system_prompt": "你是一个智能助手，请认真回答用户的问题。请用中文回复。",
+    "require_template_selection": true,
     "auto_generate_title": true,
     "title_max_length": 20,
     "title_min_length": 10,
     "auto_sync_templates": true,
     "sync_on_startup": true,
+    "sync_interval_hours": 24,
     "model_mapping": {
-      "Gemini 2.5 pro": "google/gemini-pro-2.5",
+      "Gemini 2.5 pro": "google/gemini-2.5-pro",
       "Gemini 2.5 flash": "google/gemini-2.5-flash",
       "Claude 4 sonnet": "anthropic/claude-sonnet-4",
       "Chatgpt 4.1": "openai/gpt-4.1",
       "Chatgpt O3": "openai/o3",
       "Deepseek R1": "deepseek/deepseek-r1-0528",
       "Deepseek V3": "deepseek/deepseek-chat-v3-0324"
-    },
-    "continuous_conversation": {
-      "enabled": true,
-      "max_history_turns": 5,
-      "auto_generate_session_id": true,
-      "session_id_format": "sess_{timestamp}_{random}",
-      "enable_context_summary": true,
-      "max_context_length": 8000,
-      "history_weight": 0.3,
-      "enable_session_management": true,
-      "auto_close_inactive_sessions": false,
-      "inactive_session_days": 7
     }
   },
   "knowledge_search": {
-    "max_context_length": 4000,
+    "enable_smart_rag": false,
     "max_snippets": 5,
-    "similarity_threshold": 0.3,
-    "enable_semantic_search": true,
-    "enable_usage_weighting": true,
-    "snippet_max_length": 800,
-    "enable_new_system": true,
-    
-    "rag_system": {
-      "enabled": true,
-      "mode": "hybrid",
-      
-      "embedding": {
-        "model_name": "BAAI/bge-large-zh-v1.5",
-        "model_cache_dir": "./model_cache",
-        "batch_size": 32,
-        "max_seq_length": 512,
-        "device": "auto",
-        "enable_gpu": true
-      },
-      
-      "search": {
-        "similarity_threshold": 0.3,
-        "max_results": 10,
-        "chunk_size": 300,
-        "chunk_overlap": 50,
-        "enable_caching": true,
-        "cache_ttl_hours": 24,
-        "enable_batch_processing": true
-      },
-      
-      "ranking": {
-        "similarity_weight": 0.4,
-        "priority_weight": 0.2,
-        "frequency_weight": 0.2,
-        "recency_weight": 0.1,
-        "authority_weight": 0.1
-      },
-      
-      "performance": {
-        "index_type": "auto",
-        "nlist": 100,
-        "efConstruction": 200,
-        "M": 16,
-        "enable_performance_monitoring": true
-      },
-      
-      "context": {
-        "enable_context": true,
-        "context_window_size": 5,
-        "context_decay_factor": 0.8,
-        "multi_turn_support": true
-      }
-    }
+    "similarity_threshold": 0.3
   }
 } 

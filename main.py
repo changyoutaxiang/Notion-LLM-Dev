@@ -23,7 +23,7 @@ from gui import NotionLLMGUI
 
 def check_dependencies():
     """检查依赖包是否已安装"""
-    required_packages = ['requests']
+    required_packages = ['requests', 'flask', 'dotenv']
     missing_packages = []
     
     for package in required_packages:
@@ -52,7 +52,23 @@ def check_config_file():
         default_config = {
             "notion": {
                 "api_key": "请填入你的Notion API密钥",
-                "database_id": "请填入你的Notion数据库ID"
+                "database_id": "请填入你的Notion数据库ID",
+                "input_property_name": "输入",
+                "output_property_name": "回复",
+                "status_property_name": "状态",
+                "status_in_progress": "In progress",
+                "status_done": "Done",
+                "template_property_name": "模板选择",
+                "knowledge_base_property_name": "背景",
+                "model_property_name": "模型",
+                "title_property_name": "标题",
+                "knowledge_base_path": "knowledge_base",
+                "template_database_id": "请填入你的模板库数据库ID（可选）",
+                "template_name_property": "模板名称",
+                "template_category_property": "分类",
+                "template_prompt_property": "提示词",
+                "template_description_property": "描述",
+                "template_status_property": "状态"
             },
             "openrouter": {
                 "api_key": "请填入你的OpenRouter API密钥",
@@ -61,7 +77,29 @@ def check_config_file():
             "settings": {
                 "check_interval": 120,
                 "max_retries": 3,
-                "request_timeout": 30
+                "request_timeout": 30,
+                "system_prompt": "你是一个智能助手，请认真回答用户的问题。请用中文回复。",
+                "require_template_selection": True,
+                "auto_generate_title": True,
+                "title_max_length": 20,
+                "title_min_length": 10,
+                "auto_sync_templates": True,
+                "sync_on_startup": True,
+                "sync_interval_hours": 24,
+                "model_mapping": {
+                    "Gemini 2.5 pro": "google/gemini-2.5-pro",
+                    "Gemini 2.5 flash": "google/gemini-2.5-flash",
+                    "Claude 4 sonnet": "anthropic/claude-sonnet-4",
+                    "Chatgpt 4.1": "openai/gpt-4.1",
+                    "Chatgpt O3": "openai/o3",
+                    "Deepseek R1": "deepseek/deepseek-r1-0528",
+                    "Deepseek V3": "deepseek/deepseek-chat-v3-0324"
+                }
+            },
+            "knowledge_search": {
+                "enable_smart_rag": False,
+                "max_snippets": 5,
+                "similarity_threshold": 0.3
             }
         }
         
@@ -69,7 +107,7 @@ def check_config_file():
             with open("config.json", "w", encoding="utf-8") as f:
                 json.dump(default_config, f, ensure_ascii=False, indent=2)
             print("✅ 已创建默认配置文件 config.json")
-            print("⚠️  请在程序中配置你的API密钥")
+            print("⚠️  请在程序中配置你的API密钥和数据库ID")
             return True
         except Exception as e:
             print(f"❌ 创建配置文件失败: {e}")
@@ -90,19 +128,26 @@ def print_welcome():
     print("• 🔄 将LLM回复自动写回Notion数据库")
     print("• 🖥️  简单易用的图形界面")
     print("• 📊 实时监控和日志记录")
+    print("• 🗂️  模板库管理和同步")
+    print("• 📚 支持知识库背景上下文")
+    print("• ☁️  支持云端部署")
     print()
     print("Notion数据库需要的字段:")
     print("• 标题 (Title)")
-    print("• 输入内容 (Rich Text)")  
+    print("• 输入 (Rich Text)")  
     print("• 模板选择 (Select)")
-    print("• LLM 回复 (Rich Text)")
+    print("• 背景 (Multi-select)")
+    print("• 模型 (Select)")
+    print("• 回复 (Rich Text)")
+    print("• 状态 (Select)")
     print()
-    print("🆕 最新功能:")
-    print("• 🎯 双异步模式：需选择模板才执行处理")
-    print("• 🤖 AI自动生成10-20字的自然标题")
-    print("• 📋 完整的模板库管理系统")
-    print("• 🔄 自动同步模板选项到Notion")
-    print("• 📊 智能统计等待和处理状态")
+    print("🆕 简化版特性:")
+    print("• 🎯 本地GUI + 云端API双模式")
+    print("• 🤖 AI自动生成标题")
+    print("• 📋 完整的模板库管理")
+    print("• 🔄 自动同步模板选项")
+    print("• 📚 本地知识库RAG支持")
+    print("• 📊 智能状态监控")
     print()
 
 def main():
