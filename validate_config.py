@@ -91,7 +91,7 @@ def validate_notion_config(config):
         resp = requests.get(url, headers=headers, timeout=10)
         if resp.status_code == 200:
             print("✅ Notion API连通性检测通过，配置有效！")
-            return True
+        return True
         else:
             print(f"❌ Notion API请求失败，状态码: {resp.status_code}")
             try:
