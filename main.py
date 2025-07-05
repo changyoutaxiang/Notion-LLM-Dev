@@ -19,7 +19,38 @@ Notion-LLM 异步通信助手
 import sys
 import os
 import json
-from gui import NotionLLMGUI
+
+# 检查是否为云端部署环境
+if os.environ.get('CLOUD_DEPLOYMENT') == 'true' or os.environ.get('PORT'):
+    # 云端环境，启动云端版本
+    print("🌐 检测到云端部署环境，启动云端版本...")
+    from cloud_main import app, CloudScheduler
+    import threading
+    
+    def start_cloud_version():
+        # 创建调度器实例
+        scheduler = CloudScheduler()
+        
+        # 如果设置了自动启动，则启动调度器
+        if os.environ.get("AUTO_START", "true").lower() == "true":
+            threading.Thread(target=scheduler.start, daemon=True).start()
+            print("✅ 自动启动调度器")
+        
+        # 启动Flask服务
+        port = int(os.environ.get('PORT', 5000))
+        app.run(host="0.0.0.0", port=port, debug=False)
+    
+    if __name__ == "__main__":
+        start_cloud_version()
+        sys.exit(0)
+else:
+    # 本地环境，导入GUI模块
+    try:
+        from gui import NotionLLMGUI
+    except ImportError as e:
+        print(f"❌ GUI模块导入失败: {e}")
+        print("💡 如果您想在云端运行，请设置环境变量 CLOUD_DEPLOYMENT=true")
+        sys.exit(1)
 
 def check_dependencies():
     """检查依赖包是否已安装"""
@@ -152,6 +183,11 @@ def print_welcome():
 
 def main():
     """主函数"""
+    # 检查是否为云端部署环境
+    if os.environ.get('CLOUD_DEPLOYMENT') == 'true' or os.environ.get('PORT'):
+        # 云端环境已经在文件开头处理了
+        return
+    
     print_welcome()
     
     # 检查运行环境

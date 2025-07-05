@@ -1,0 +1,21 @@
+# 云端部署专用依赖文件
+# 仅包含云端服务所需的核心依赖，不包含GUI相关包
+
+# 核心Web框架
+Flask==2.3.3
+gunicorn==21.2.0
+
+# HTTP请求库（调用LLM API和Notion API）
+requests==2.31.0
+
+# 环境变量处理
+python-dotenv==1.0.0
+
+# 时间处理
+python-dateutil==2.8.2
+
+# JSON处理增强
+ujson==5.8.0
+
+# 日志处理
+colorlog==6.7.0 

@@ -47,6 +47,8 @@ python main.py
 
 ### 云端部署
 
+#### 快速部署
+
 1. **设置环境变量**
 ```bash
 export NOTION_API_KEY="your_notion_api_key"
@@ -58,6 +60,42 @@ export OPENROUTER_API_KEY="your_openrouter_api_key"
 ```bash
 python cloud_main.py
 ```
+
+#### Zeabur/Railway/Render 部署
+
+1. **使用 Dockerfile 部署（推荐）**
+   - 确保使用项目根目录的 `Dockerfile`
+   - 设置必需的环境变量
+   - 服务会自动使用 `cloud_main.py` 启动
+
+2. **使用 Python 部署**
+   ```bash
+   # 确保启动命令为以下之一：
+   python cloud_main.py
+   # 或者
+   python app.py
+   ```
+
+#### 常见部署问题解决
+
+**问题1：tkinter 导入错误**
+```
+ImportError: libtkb.so: cannot open shared object file
+```
+**解决方案**：
+- ✅ 确保使用 `cloud_main.py` 而不是 `main.py`
+- ✅ 使用 `requirements-cloud.txt` 依赖文件  
+- ✅ 检查 Dockerfile 中的 CMD 命令
+
+**问题2：端口绑定失败**
+```
+Address already in use
+```
+**解决方案**：
+- ✅ 确保代码中使用 `PORT` 环境变量
+- ✅ 云端平台会自动设置端口
+
+**详细部署指南**：请参考 `cloud-deployment-guide.md` 文件
 
 ## 📁 项目结构
 
